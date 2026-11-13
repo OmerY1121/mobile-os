@@ -46,3 +46,12 @@ clean:
 
 test: $(BUILD)/statusd $(BUILD)/statusctl
 	bash tests/test-ipc.sh
+
+
+.PHONY: test-boot
+test-boot:
+	python3 tests/test-qemu-boot.py
+
+.PHONY: test-restart
+test-restart:
+	bash tests/test-qemu-restart.sh

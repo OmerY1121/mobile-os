@@ -55,4 +55,6 @@ PY
 
 python3 tests/test-ipc-errors.py
 
+bash tests/test-ipc-commands.sh
+
 echo "All IPC tests passed."

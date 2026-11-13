@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -81,6 +82,14 @@ int main(void)
     printf("statusd: no_new_privs=%d\n", nnp);
     puts("statusd: local IPC ready");
 
+    struct timespec started;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &started) < 0) {
+        perror("statusd: clock");
+        close(server);
+        return 1;
+    }
+
     for (;;) {
         int client = accept(server, NULL, NULL);
 
@@ -108,11 +117,31 @@ int main(void)
         ssize_t n = ipc_read_line(client, request,
                                   sizeof(request));
 
-        const char *reply =
-            n < 0 ? "statusd: invalid request\n" :
-            strcmp(request, "STATUS\n") == 0 ?
-            "statusd: running\n" :
-            "statusd: unknown command\n";
+        char uptime_reply[64];
+        const char *reply;
+
+        if (n < 0) {
+            reply = "statusd: invalid request\n";
+        } else if (strcmp(request, "STATUS\n") == 0) {
+            reply = "statusd: running\n";
+        } else if (strcmp(request, "PING\n") == 0) {
+            reply = "statusd: pong\n";
+        } else if (strcmp(request, "UPTIME\n") == 0) {
+            struct timespec now;
+
+            if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
+                reply = "statusd: clock error\n";
+            } else {
+                long seconds =
+                    (long)(now.tv_sec - started.tv_sec);
+
+                snprintf(uptime_reply, sizeof(uptime_reply),
+                         "statusd: uptime %lds\n", seconds);
+                reply = uptime_reply;
+            }
+        } else {
+            reply = "statusd: unknown command\n";
+        }
 
         if (ipc_send_all(client, reply, strlen(reply)) < 0)
             perror("statusd: send");

@@ -7,8 +7,29 @@
 
 #include "ipc_io.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
+    const char *request = "STATUS\n";
+
+    if (argc > 2) {
+        fputs("usage: statusctl [status|ping|uptime]\n",
+              stderr);
+        return 1;
+    }
+
+    if (argc == 2) {
+        if (strcmp(argv[1], "status") == 0)
+            request = "STATUS\n";
+        else if (strcmp(argv[1], "ping") == 0)
+            request = "PING\n";
+        else if (strcmp(argv[1], "uptime") == 0)
+            request = "UPTIME\n";
+        else {
+            fprintf(stderr, "Unknown command: %s\n", argv[1]);
+            return 1;
+        }
+    }
+
     const char *env = getenv("MOBILE_OS_SOCKET");
     const char *path = (env && *env)
         ? env : "/run/mobile-os/status.sock";
@@ -38,7 +59,7 @@ int main(void)
         return 1;
     }
 
-    if (ipc_send_all(fd, "STATUS\n", 7) < 0) {
+    if (ipc_send_all(fd, request, strlen(request)) < 0) {
         perror("statusctl: send");
         close(fd);
         return 1;
