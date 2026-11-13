@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.3 - Local IPC
+
+### Added
+- Unix domain socket communication.
+- statusctl client.
+- Local status request handling.
+
+### Tested
+- IPC communication in Codespaces.
+- Socket creation in QEMU.
+- Client/server communication inside QEMU.
+
+### Limitations
+- One command supported.
+- No general permission or IPC framework yet.
+
+
 ## v0.0.2 - Basic service management
 
 ### Added

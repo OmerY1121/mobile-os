@@ -71,7 +71,7 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.2");
+    puts("Mobile OS 0.0.3");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
