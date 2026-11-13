@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.5 - Peer authentication
+
+### Added
+- SO_PEERCRED-based peer authentication.
+- Cross-user authentication tests.
+- GitHub Actions CI workflow.
+
+### Tested
+- Authorized and unauthorized connections.
+- Existing IPC functionality.
+- QEMU boot.
+
+### Limitations
+- Same-UID processes are not isolated.
+- No application permission framework yet.
+
+
 ## v0.0.4 - IPC error handling
 
 ### Added
