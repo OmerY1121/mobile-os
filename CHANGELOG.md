@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.0.2 - Basic service management
+
+### Added
+- First test service (statusd).
+- Service startup and exit monitoring.
+- Automatic restart with a failure limit.
+
+### Tested
+- Normal service startup in QEMU.
+- Repeated failure using exit code 1.
+- Restart limit after three failed runs.
+- Normal service restored and verified.
+
+### Limitations
+- Only one service is supported.
+- No service configuration or IPC yet.
+
+
 ## v0.0.1 - Initial boot
 
 ### Added

@@ -1,31 +1,83 @@
-
+#include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <sys/mount.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
+
+#define MAX_QUICK_FAILURES 3
+#define STABLE_SECONDS 30
+
+static void manage_statusd(void)
+{
+    int quick_failures = 0;
+
+    for (;;) {
+        time_t started = time(NULL);
+        pid_t child = fork();
+
+        if (child < 0) {
+            perror("init: fork");
+            sleep(2);
+            continue;
+        }
+
+        if (child == 0) {
+            execl("/bin/statusd", "statusd", (char *)NULL);
+            perror("init: exec statusd");
+            _exit(127);
+        }
+
+        printf("init: statusd started (PID %ld)\n",
+               (long)child);
+
+        int status;
+
+        while (waitpid(child, &status, 0) < 0) {
+            if (errno == EINTR)
+                continue;
+
+            perror("init: waitpid");
+            return;
+        }
+
+        if (WIFEXITED(status)) {
+            printf("init: statusd exited with code %d\n",
+                   WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            printf("init: statusd stopped by signal %d\n",
+                   WTERMSIG(status));
+        }
+
+        if (time(NULL) - started >= STABLE_SECONDS)
+            quick_failures = 0;
+
+        if (++quick_failures >= MAX_QUICK_FAILURES) {
+            puts("init: statusd restart limit reached");
+            break;
+        }
+
+        sleep(quick_failures);
+    }
+}
 
 int main(void)
 {
-    // Only run as the first userspace process.
     if (getpid() != 1) {
-        fprintf(stderr, "Error: init must run as PID 1.\n");
+        fputs("init must run as PID 1\n", stderr);
         return 1;
     }
 
-    // Disable output buffering for early boot.
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    printf("Mobile OS 0.0.1\n");
-    printf("Initializing system...\n");
+    puts("Mobile OS 0.0.2");
 
-    // Mount the Linux process information filesystem.
-    if (mount("proc", "/proc", "proc", 0, NULL) != 0) {
-        perror("Failed to mount /proc");
-    }
+    if (mount("proc", "/proc", "proc", 0, NULL) != 0)
+        perror("init: mount /proc");
 
-    printf("Initialization reached idle state.\n");
+    manage_statusd();
 
-    // Keep PID 1 alive until we implement services.
-    for (;;) {
+    for (;;)
         pause();
-    }
 }
