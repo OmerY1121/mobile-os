@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.0.5.5 - Process information isolation
+
+### Added
+- Restricted /proc mount using hidepid=2.
+- Process visibility test.
+
+### Tested
+- Own process information accessible.
+- Root process information hidden.
+- Existing IPC functionality and QEMU boot.
+
+### Limitations
+- No separate PID namespace yet.
+
+
 ## v0.0.5.4 - Mount namespace isolation
 
 ### Added

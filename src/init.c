@@ -97,7 +97,15 @@ static int isolate_statusd_mounts(void)
         return -1;
     }
 
+    if (mount("proc", "/proc", "proc",
+              MS_NOSUID | MS_NODEV | MS_NOEXEC,
+              "hidepid=2") < 0) {
+        perror("init: restricted /proc");
+        return -1;
+    }
+
     puts("init: statusd private tmpfs ready");
+    puts("init: statusd restricted /proc ready");
     return 0;
 }
 
@@ -182,7 +190,7 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.5.4");
+    puts("Mobile OS 0.0.5.5");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
