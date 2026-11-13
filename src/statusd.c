@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,22 @@ static const char *socket_path(void)
 {
     const char *env = getenv("MOBILE_OS_SOCKET");
     return (env && *env) ? env : "/run/mobile-os/status.sock";
+}
+
+
+static int peer_allowed(int fd)
+{
+    struct ucred credentials;
+    socklen_t length = sizeof(credentials);
+
+    if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED,
+                   &credentials, &length) < 0 ||
+        length != sizeof(credentials)) {
+        perror("statusd: peer credentials");
+        return 0;
+    }
+
+    return credentials.uid == geteuid();
 }
 
 int main(void)
@@ -61,6 +78,12 @@ int main(void)
                 continue;
 
             perror("statusd: accept");
+            continue;
+        }
+
+        if (!peer_allowed(client)) {
+            fputs("statusd: unauthorized peer\n", stderr);
+            close(client);
             continue;
         }
 
