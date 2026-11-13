@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.5.3 - Process hardening
+
+### Added
+- no_new_privs for statusd.
+- Runtime verification of the security flag.
+
+### Tested
+- Existing IPC tests.
+- QEMU boot.
+- no_new_privs inheritance after exec.
+
+### Limitations
+- Privilege escalation prevention not independently tested.
+- No seccomp or namespace isolation yet.
+
+
 ## v0.0.5.2 - Private service directories
 
 ### Added

@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <sys/prctl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,6 +69,16 @@ int main(void)
     }
 
     setvbuf(stdout, NULL, _IONBF, 0);
+    int nnp = prctl(PR_GET_NO_NEW_PRIVS,
+                    0L, 0L, 0L, 0L);
+
+    if (nnp < 0) {
+        perror("statusd: get no_new_privs");
+        close(server);
+        return 1;
+    }
+
+    printf("statusd: no_new_privs=%d\n", nnp);
     puts("statusd: local IPC ready");
 
     for (;;) {

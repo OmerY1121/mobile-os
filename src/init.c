@@ -1,3 +1,4 @@
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <grp.h>
 #include <errno.h>
@@ -98,6 +99,12 @@ static void manage_statusd(void)
             printf("init: statusd credentials UID=%ld GID=%ld\n",
                    (long)getuid(), (long)getgid());
 
+            if (prctl(PR_SET_NO_NEW_PRIVS, 1L,
+                      0L, 0L, 0L) < 0) {
+                perror("init: no_new_privs");
+                _exit(126);
+            }
+
             execl("/bin/statusd", "statusd", (char *)NULL);
             perror("init: exec statusd");
             _exit(127);
@@ -145,7 +152,7 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.5.2");
+    puts("Mobile OS 0.0.5.3");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
