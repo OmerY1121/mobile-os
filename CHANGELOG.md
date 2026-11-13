@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.3.1 - Build and tests
+
+- Added Makefile.
+- Added automated IPC tests.
+- Added socket permission checks.
+
+
 ## v0.0.3 - Local IPC
 
 ### Added
