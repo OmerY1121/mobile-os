@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.0.5.2 - Private service directories
+
+### Added
+- Private directories for system and service data.
+- Directory ownership and permission setup.
+- Filesystem access test.
+
+### Tested
+- Service UID and GID.
+- Allowed write access to service storage.
+- Denied write access to system storage.
+- Normal boot and IPC tests.
+
+### Limitations
+- No filesystem sandbox.
+- No persistent storage.
+
+
 ## v0.0.5.1 - Service privileges
 
 ### Added

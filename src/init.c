@@ -30,6 +30,49 @@ static int prepare_statusd_directory(void)
     return 0;
 }
 
+
+static int setup_private_directory(
+    const char *path, uid_t uid, gid_t gid)
+{
+    if (mkdir(path, 0700) < 0 && errno != EEXIST) {
+        perror("init: mkdir");
+        return -1;
+    }
+
+    if (chown(path, uid, gid) < 0) {
+        perror("init: chown");
+        return -1;
+    }
+
+    if (chmod(path, 0700) < 0) {
+        perror("init: chmod");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int prepare_private_storage(void)
+{
+    if (chown("/var/lib/mobile-os", 0, 0) < 0 ||
+        chmod("/var/lib/mobile-os", 0755) < 0) {
+        perror("init: storage parent");
+        return -1;
+    }
+
+    if (setup_private_directory(
+            "/var/lib/mobile-os/system", 0, 0) < 0)
+        return -1;
+
+    if (setup_private_directory(
+            "/var/lib/mobile-os/statusd",
+            STATUSD_UID, STATUSD_GID) < 0)
+        return -1;
+
+    puts("init: private directories ready");
+    return 0;
+}
+
 static void manage_statusd(void)
 {
     int quick_failures = 0;
@@ -102,12 +145,13 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.5.1");
+    puts("Mobile OS 0.0.5.2");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
 
-    if (prepare_statusd_directory() == 0)
+    if (prepare_private_storage() == 0 &&
+        prepare_statusd_directory() == 0)
         manage_statusd();
     else
         fputs("init: statusd not started\n", stderr);

@@ -24,7 +24,7 @@ $(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
 
 $(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl Makefile
 	rm -rf $(ROOTFS)
-	mkdir -p $(ROOTFS)/bin $(ROOTFS)/proc $(ROOTFS)/sys $(ROOTFS)/dev $(ROOTFS)/run/mobile-os
+	mkdir -p $(ROOTFS)/bin $(ROOTFS)/proc $(ROOTFS)/sys $(ROOTFS)/dev $(ROOTFS)/run/mobile-os $(ROOTFS)/var/lib/mobile-os
 	cp $(BUILD)/init $(ROOTFS)/init
 	cp $(BUILD)/statusd $(BUILD)/statusctl $(ROOTFS)/bin/
 	fakeroot sh -ec 'cd "$(ROOTFS)"; mknod -m 600 dev/console c 5 1; mknod -m 666 dev/null c 1 3; find . -print0 | cpio --null --quiet -o -H newc | gzip -9 > ../initramfs.cpio.gz'
