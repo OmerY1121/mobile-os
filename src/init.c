@@ -1,3 +1,5 @@
+#include <sys/stat.h>
+#include <grp.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/mount.h>
@@ -6,8 +8,27 @@
 #include <time.h>
 #include <unistd.h>
 
+#define STATUSD_UID 1100
+#define STATUSD_GID 1100
+
 #define MAX_QUICK_FAILURES 3
 #define STABLE_SECONDS 30
+
+static int prepare_statusd_directory(void)
+{
+    if (chown("/run/mobile-os",
+              STATUSD_UID, STATUSD_GID) < 0) {
+        perror("init: chown status directory");
+        return -1;
+    }
+
+    if (chmod("/run/mobile-os", 0700) < 0) {
+        perror("init: chmod status directory");
+        return -1;
+    }
+
+    return 0;
+}
 
 static void manage_statusd(void)
 {
@@ -24,6 +45,16 @@ static void manage_statusd(void)
         }
 
         if (child == 0) {
+            if (setgroups(0, NULL) < 0 ||
+                setgid(STATUSD_GID) < 0 ||
+                setuid(STATUSD_UID) < 0) {
+                perror("init: drop service privileges");
+                _exit(126);
+            }
+
+            printf("init: statusd credentials UID=%ld GID=%ld\n",
+                   (long)getuid(), (long)getgid());
+
             execl("/bin/statusd", "statusd", (char *)NULL);
             perror("init: exec statusd");
             _exit(127);
@@ -71,12 +102,15 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.5");
+    puts("Mobile OS 0.0.5.1");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
 
-    manage_statusd();
+    if (prepare_statusd_directory() == 0)
+        manage_statusd();
+    else
+        fputs("init: statusd not started\n", stderr);
 
     for (;;)
         pause();

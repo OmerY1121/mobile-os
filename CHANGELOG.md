@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.5.1 - Service privileges
+
+### Added
+- Dedicated UID and GID for statusd.
+- Privilege dropping before service execution.
+- Restricted service directory access.
+
+### Tested
+- Existing IPC tests.
+- QEMU boot with reduced service privileges.
+
+
 ## v0.0.5 - Peer authentication
 
 ### Added
