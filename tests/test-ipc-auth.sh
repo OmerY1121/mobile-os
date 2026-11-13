@@ -46,9 +46,11 @@ echo "PASS: authorized connection"
 chmod 777 "$MOBILE_OS_SOCKET"
 
 # Unauthorized user
+cp build/statusctl "$TEST_DIR/statusctl"
+chmod 755 "$TEST_DIR/statusctl"
 if sudo -n -u nobody env \
     MOBILE_OS_SOCKET="$MOBILE_OS_SOCKET" \
-    "$PWD/build/statusctl" \
+    "$TEST_DIR/statusctl" \
     > "$TEST_DIR/client.log" 2>&1; then
     echo "FAIL: unauthorized connection accepted"
     exit 1
