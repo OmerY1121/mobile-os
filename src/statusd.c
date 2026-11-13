@@ -19,19 +19,24 @@ static const char *socket_path(void)
 }
 
 
-static int peer_allowed(int fd)
+static uid_t peer_uid(int fd)
 {
     struct ucred credentials;
     socklen_t length = sizeof(credentials);
 
     if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED,
                    &credentials, &length) < 0 ||
-        length != sizeof(credentials)) {
-        perror("statusd: peer credentials");
-        return 0;
-    }
+        length != sizeof(credentials))
+        return (uid_t)-1;
 
-    return credentials.uid == geteuid();
+    return credentials.uid;
+}
+
+static int peer_allowed(int fd)
+{
+    uid_t uid = peer_uid(fd);
+
+    return uid == geteuid() || uid == 0;
 }
 
 int main(void)
@@ -116,6 +121,39 @@ int main(void)
         char request[32];
         ssize_t n = ipc_read_line(client, request,
                                   sizeof(request));
+
+        if (n > 0 && strcmp(request, "STOP\n") == 0) {
+            if (peer_uid(client) != 0) {
+                const char *denied =
+                    "statusd: permission denied\n";
+
+                (void)ipc_send_all(
+                    client, denied, strlen(denied));
+                close(client);
+                continue;
+            }
+
+            const char *response =
+                "statusd: stopping\n";
+
+            (void)ipc_send_all(
+                client, response, strlen(response));
+
+            close(client);
+
+            const char *path =
+                getenv("MOBILE_OS_SOCKET");
+
+            if (path == NULL || path[0] == '\0')
+                path = "/run/mobile-os/status.sock";
+
+            if (unlink(path) < 0)
+                perror("statusd: unlink socket");
+
+            close(server);
+            puts("statusd: authorized shutdown");
+            return 0;
+        }
 
         char uptime_reply[64];
         const char *reply;

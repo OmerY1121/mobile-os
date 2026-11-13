@@ -55,3 +55,15 @@ test-boot:
 .PHONY: test-restart
 test-restart:
 	bash tests/test-qemu-restart.sh
+
+
+.PHONY: test-stop
+test-stop:
+	bash tests/test-qemu-stop.sh
+
+.PHONY: test-all
+test-all:
+	$(MAKE) test
+	$(MAKE) test-boot
+	$(MAKE) test-restart
+	$(MAKE) test-stop

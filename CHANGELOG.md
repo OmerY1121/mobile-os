@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.6
+
+- Added PID namespace isolation for statusd.
+- Improved service restart and shutdown handling.
+- Added cleanup for remaining child processes.
+- Added statusctl ping, uptime and stop.
+- Restricted service shutdown to root.
+- Added automated QEMU tests for booting, crashes
+  and service shutdown.
+- Added make test-all.
+
+
 ## v0.0.5.5 - Process information isolation
 
 ### Added

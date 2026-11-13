@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     const char *request = "STATUS\n";
 
     if (argc > 2) {
-        fputs("usage: statusctl [status|ping|uptime]\n",
+        fputs("usage: statusctl [status|ping|uptime|stop]\n",
               stderr);
         return 1;
     }
@@ -24,6 +24,8 @@ int main(int argc, char **argv)
             request = "PING\n";
         else if (strcmp(argv[1], "uptime") == 0)
             request = "UPTIME\n";
+        else if (strcmp(argv[1], "stop") == 0)
+            request = "STOP\n";
         else {
             fprintf(stderr, "Unknown command: %s\n", argv[1]);
             return 1;

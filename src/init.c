@@ -297,6 +297,12 @@ static void manage_statusd(void)
                    WTERMSIG(status));
         }
 
+        if (WIFEXITED(status) &&
+            WEXITSTATUS(status) == 0) {
+            puts("init: statusd stopped normally");
+            break;
+        }
+
         if (time(NULL) - started >= STABLE_SECONDS)
             quick_failures = 0;
 
@@ -318,7 +324,7 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.6-dev");
+    puts("Mobile OS 0.0.6");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
