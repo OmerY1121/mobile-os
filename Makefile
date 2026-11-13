@@ -67,3 +67,7 @@ test-all:
 	$(MAKE) test-boot
 	$(MAKE) test-restart
 	$(MAKE) test-stop
+
+.PHONY: test-arm-boot
+test-arm-boot:
+	python3 tests/test-armv7-boot.py
