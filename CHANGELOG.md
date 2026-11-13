@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.5.4 - Mount namespace isolation
+
+### Added
+- Separate mount namespace for statusd.
+- Private 4 MB tmpfs at /tmp.
+- Mount isolation test.
+
+### Tested
+- Private tmpfs creation.
+- Original /tmp marker hidden.
+- Write access to private /tmp.
+- Normal QEMU boot.
+
+### Limitations
+- Other filesystem paths are not isolated.
+
+
 ## v0.0.5.3 - Process hardening
 
 ### Added

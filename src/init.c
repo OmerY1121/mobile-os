@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <sched.h>
 #include <sys/prctl.h>
 #include <sys/stat.h>
 #include <grp.h>
@@ -74,6 +76,31 @@ static int prepare_private_storage(void)
     return 0;
 }
 
+
+static int isolate_statusd_mounts(void)
+{
+    if (unshare(CLONE_NEWNS) < 0) {
+        perror("init: unshare");
+        return -1;
+    }
+
+    if (mount(NULL, "/", NULL,
+              MS_REC | MS_PRIVATE, NULL) < 0) {
+        perror("init: mount propagation");
+        return -1;
+    }
+
+    if (mount("tmpfs", "/tmp", "tmpfs",
+              MS_NOSUID | MS_NODEV | MS_NOEXEC,
+              "size=4m,mode=0700,uid=1100,gid=1100") < 0) {
+        perror("init: private tmpfs");
+        return -1;
+    }
+
+    puts("init: statusd private tmpfs ready");
+    return 0;
+}
+
 static void manage_statusd(void)
 {
     int quick_failures = 0;
@@ -89,6 +116,9 @@ static void manage_statusd(void)
         }
 
         if (child == 0) {
+            if (isolate_statusd_mounts() < 0)
+                _exit(126);
+
             if (setgroups(0, NULL) < 0 ||
                 setgid(STATUSD_GID) < 0 ||
                 setuid(STATUSD_UID) < 0) {
@@ -152,7 +182,7 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.5.3");
+    puts("Mobile OS 0.0.5.4");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
