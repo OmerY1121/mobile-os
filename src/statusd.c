@@ -1,5 +1,4 @@
 #include <errno.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +6,8 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#include "ipc_io.h"
 
 static const char *socket_path(void)
 {
@@ -31,12 +32,15 @@ int main(void)
         return 1;
     }
 
-    signal(SIGPIPE, SIG_IGN);
     umask(0077);
-
     addr.sun_family = AF_UNIX;
     strcpy(addr.sun_path, path);
-    unlink(path);
+
+    if (unlink(path) < 0 && errno != ENOENT) {
+        perror("statusd: unlink");
+        close(server);
+        return 1;
+    }
 
     if (bind(server, (struct sockaddr *)&addr,
              sizeof(addr)) < 0 ||
@@ -46,8 +50,8 @@ int main(void)
         return 1;
     }
 
+    setvbuf(stdout, NULL, _IONBF, 0);
     puts("statusd: local IPC ready");
-    fflush(stdout);
 
     for (;;) {
         int client = accept(server, NULL, NULL);
@@ -60,19 +64,25 @@ int main(void)
             continue;
         }
 
-        char request[32];
-        ssize_t n = read(client, request,
-                         sizeof(request));
-
-        const char *answer =
-            (n == 7 &&
-             memcmp(request, "STATUS\n", 7) == 0)
-            ? "statusd: running\n"
-            : "statusd: unknown command\n";
-
-        if (write(client, answer, strlen(answer)) < 0) {
-            perror("statusd: write");
+        if (ipc_set_timeout(client) < 0) {
+            perror("statusd: timeout setup");
+            close(client);
+            continue;
         }
+
+        char request[32];
+        ssize_t n = ipc_read_line(client, request,
+                                  sizeof(request));
+
+        const char *reply =
+            n < 0 ? "statusd: invalid request\n" :
+            strcmp(request, "STATUS\n") == 0 ?
+            "statusd: running\n" :
+            "statusd: unknown command\n";
+
+        if (ipc_send_all(client, reply, strlen(reply)) < 0)
+            perror("statusd: send");
+
         close(client);
     }
 }

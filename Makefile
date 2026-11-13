@@ -16,10 +16,10 @@ $(BUILD):
 $(BUILD)/init: src/init.c | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(BUILD)/statusd: src/statusd.c | $(BUILD)
+$(BUILD)/statusd: src/statusd.c src/ipc_io.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(BUILD)/statusctl: src/statusctl.c | $(BUILD)
+$(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
 $(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl Makefile

@@ -53,4 +53,6 @@ assert mode & 0o077 == 0, "Socket permissions too broad"
 print("PASS: socket permissions")
 PY
 
+python3 tests/test-ipc-errors.py
+
 echo "All IPC tests passed."

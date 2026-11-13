@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.4 - IPC error handling
+
+### Added
+- Shared IPC functions.
+- Partial message handling.
+- Socket timeouts.
+- Five additional IPC error tests.
+
+### Fixed
+- Incomplete message handling.
+- Basic handling of failed connections.
+
+### Limitations
+- Sequential client processing.
+- No application-level authentication.
+
+
 ## v0.0.3.1 - Build and tests
 
 - Added Makefile.
