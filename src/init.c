@@ -328,6 +328,8 @@ struct managed_service {
     time_t started;
     time_t retry_at;
     int failures;
+    int exit_kind;
+    int exit_value;
     int stopped;
     int enabled;
     int restart_limit;
@@ -378,6 +380,29 @@ static void start_service(struct managed_service *svc)
 static void service_exited(struct managed_service *svc,
                            int status)
 {
+    if (WIFEXITED(status)) {
+        svc->exit_kind = 1;
+        svc->exit_value = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        svc->exit_kind = 2;
+        svc->exit_value = WTERMSIG(status);
+    }
+
+    if (svc->exit_kind != 0) {
+        char event[160];
+
+        snprintf(
+            event, sizeof(event),
+            "init: %s terminated %s-%d",
+            svc->name,
+            svc->exit_kind == 1 ? "exit" : "signal",
+            svc->exit_value
+        );
+
+        puts(event);
+        (void)mo_log_event(event);
+    }
+
     svc->pid = 0;
 
     if (WIFEXITED(status)) {
@@ -439,10 +464,13 @@ static void publish_service_states(
         entries[i].name = svc->name;
         entries[i].state = state;
         entries[i].failures = svc->failures;
+        entries[i].exit_kind = svc->exit_kind;
+        entries[i].exit_value = svc->exit_value;
 
         int n = snprintf(
             signature + used, sizeof(signature) - used,
-            "%s=%s:%d;", svc->name, state, svc->failures
+            "%s=%s:%d:%d:%d;", svc->name, state,
+            svc->failures, svc->exit_kind, svc->exit_value
         );
 
         if (n < 0 ||
@@ -562,7 +590,7 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.8-dev");
+    puts("Mobile OS 0.0.8");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");

@@ -42,3 +42,15 @@ build/vmlinuz before running QEMU.
 ## Releases
 
 Release notes are available in docs/releases/.
+
+
+## Development status (v0.0.8)
+
+v0.0.8 adds local logging, configurable service management,
+service status reporting and health checks. The system boots
+under x86-64 and ARMv7 QEMU.
+
+The Galaxy S3 boot image has only passed offline checks. It
+has not been tested on the device and is not ready for flashing.
+
+See [v0.0.8 release notes](docs/releases/v0.0.8.md).

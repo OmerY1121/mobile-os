@@ -9,8 +9,8 @@ int main(int argc, char **argv)
         return 2;
 
     struct mo_service_state services[] = {
-        {"logd", "launched", 0},
-        {"statusd", "launched", 0}
+        {"logd", "launched", 0, 0, 0},
+        {"statusd", "launched", 0, 0, 0}
     };
 
     char buffer[1024];
@@ -31,6 +31,8 @@ int main(int argc, char **argv)
 
     services[1].state = "retrying";
     services[1].failures = 2;
+    services[1].exit_kind = 1;
+    services[1].exit_value = 7;
 
     if (mo_state_write(argv[1], services, 2) != 0)
         return 1;
@@ -42,6 +44,10 @@ int main(int argc, char **argv)
     if (!strstr(buffer, "statusd=retrying failures=2"))
         return 1;
 
+    if (!strstr(buffer, "last_exit=exit-7"))
+        return 1;
+
+    puts("PASS: last exit code recorded");
     puts("PASS: service state updates");
 
     services[1].state = "invalid state";

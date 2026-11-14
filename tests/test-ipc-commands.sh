@@ -72,4 +72,25 @@ fi
 
 echo "PASS: unsafe state file rejected"
 
+if health_output=$(./build/statusctl health); then
+    health_rc=0
+else
+    health_rc=$?
+fi
+
+case "$health_output" in
+    "health: statusd=ok logd=ok")
+        [[ "$health_rc" -eq 0 ]] || exit 1
+        ;;
+    "health: statusd=ok logd=unavailable")
+        [[ "$health_rc" -eq 2 ]] || exit 1
+        ;;
+    *)
+        echo "FAIL: unexpected health response"
+        exit 1
+        ;;
+esac
+
+echo "PASS: health command and exit status"
+
 echo "All command tests passed."

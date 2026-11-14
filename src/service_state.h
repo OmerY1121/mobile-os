@@ -7,6 +7,8 @@ struct mo_service_state {
     const char *name;
     const char *state;
     int failures;
+    int exit_kind;
+    int exit_value;
 };
 
 int mo_state_write(

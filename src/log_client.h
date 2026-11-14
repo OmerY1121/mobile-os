@@ -2,6 +2,9 @@
 #define MOBILE_OS_LOG_CLIENT_H
 
 #include <errno.h>
+#include <time.h>
+#include <poll.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +12,78 @@
 #include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+
+static int mo_log_connect_timeout(
+    int fd, const struct sockaddr_un *addr)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+
+    if (flags < 0 ||
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+        return -1;
+
+    int rc = connect(
+        fd, (const struct sockaddr *)addr,
+        sizeof(*addr)
+    );
+
+    if (rc < 0) {
+        if (errno != EINPROGRESS && errno != EINTR)
+            return -1;
+
+        struct timespec start, now;
+
+        if (clock_gettime(CLOCK_MONOTONIC, &start) < 0)
+            return -1;
+
+        struct pollfd pfd = {
+            .fd = fd,
+            .events = POLLOUT
+        };
+
+        for (;;) {
+            if (clock_gettime(CLOCK_MONOTONIC, &now) < 0)
+                return -1;
+
+            long elapsed =
+                (now.tv_sec - start.tv_sec) * 1000L +
+                (now.tv_nsec - start.tv_nsec) / 1000000L;
+
+            if (elapsed >= 1000) {
+                errno = ETIMEDOUT;
+                return -1;
+            }
+
+            rc = poll(&pfd, 1, (int)(1000 - elapsed));
+
+            if (rc > 0)
+                break;
+
+            if (rc == 0) {
+                errno = ETIMEDOUT;
+                return -1;
+            }
+
+            if (errno != EINTR)
+                return -1;
+        }
+
+        int error = 0;
+        socklen_t size = sizeof(error);
+
+        if (getsockopt(fd, SOL_SOCKET, SO_ERROR,
+                       &error, &size) < 0)
+            return -1;
+
+        if (error != 0) {
+            errno = error;
+            return -1;
+        }
+    }
+
+    return fcntl(fd, F_SETFL, flags);
+}
 
 static int mo_log_event(const char *message)
 {
@@ -54,8 +129,7 @@ static int mo_log_event(const char *message)
 
     int result = -1;
 
-    if (connect(fd, (struct sockaddr *)&addr,
-                sizeof(addr)) < 0)
+    if (mo_log_connect_timeout(fd, &addr) < 0)
         goto done;
 
     char request[256];

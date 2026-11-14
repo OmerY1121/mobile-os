@@ -11,7 +11,7 @@ for program in init statusd statusctl logd logctl; do
     sources=("src/$program.c")
 
     if [[ "$program" == "init" ]]; then
-        sources+=(src/service_config.c)
+        sources+=(src/service_config.c src/service_state.c)
     fi
 
     arm-linux-gnueabihf-gcc \

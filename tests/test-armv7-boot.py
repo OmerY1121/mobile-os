@@ -12,7 +12,7 @@ from pathlib import Path
 
 checks = {
     "ARM system boot":
-        r"Mobile OS 0\.0\.8-dev",
+        r"Mobile OS 0\.0\.8(?!-dev)",
     "Private filesystem":
         r"statusd private tmpfs ready",
     "Restricted proc":
@@ -23,6 +23,8 @@ checks = {
         r"statusd UID=1100 GID=1100 namespace PID=2 PPID=1",
     "Privilege protection":
         r"statusd: no_new_privs=1",
+    "Service state":
+        r"init: service state published",
     "Service configuration":
         r"init: service configuration loaded",
     "Logging service":

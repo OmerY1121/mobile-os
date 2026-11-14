@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     const char *request = "STATUS\n";
 
     if (argc > 2) {
-        fputs("usage: statusctl [status|ping|uptime|stop|services]\n",
+        fputs("usage: statusctl [status|ping|uptime|stop|services|health]\n",
               stderr);
         return 1;
     }
@@ -26,6 +26,8 @@ int main(int argc, char **argv)
             request = "UPTIME\n";
         else if (strcmp(argv[1], "services") == 0)
             request = "SERVICES\n";
+        else if (strcmp(argv[1], "health") == 0)
+            request = "HEALTH\n";
         else if (strcmp(argv[1], "stop") == 0)
             request = "STOP\n";
         else {
@@ -78,7 +80,22 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    fwrite(reply, 1, (size_t)n, stdout);
+    static const char healthy[] =
+        "health: statusd=ok logd=ok\n";
+
+    int result = 0;
+
+    if (strcmp(request, "HEALTH\n") == 0 &&
+        (n != (ssize_t)(sizeof(healthy) - 1) ||
+         memcmp(reply, healthy, sizeof(healthy) - 1) != 0))
+        result = 2;
+
+    if (fwrite(reply, 1, (size_t)n, stdout) != (size_t)n) {
+        perror("statusctl: output");
+        close(fd);
+        return 1;
+    }
+
     close(fd);
-    return 0;
+    return result;
 }

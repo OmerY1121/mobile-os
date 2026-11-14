@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.8
+
+- Added local logging, boot diagnostics and service configuration.
+- Added service status, exit tracking and health checks.
+- Verified recovery and IPC behavior in QEMU.
+- Updated ARMv7 builds and offline Galaxy S3 image checks.
+
 ## v0.0.7 - ARMv7 support
 
 - Added ARMv7 cross-compilation.

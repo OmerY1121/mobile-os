@@ -196,6 +196,12 @@ int main(void)
                 reply = services_reply;
             else
                 reply = "statusd: state unavailable\n";
+        } else if (strcmp(request, "HEALTH\n") == 0) {
+            if (mo_log_event("statusd: health probe") == 0)
+                reply = "health: statusd=ok logd=ok\n";
+            else
+                reply =
+                    "health: statusd=ok logd=unavailable\n";
         } else {
             reply = "statusd: unknown command\n";
         }

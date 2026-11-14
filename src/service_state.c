@@ -72,16 +72,38 @@ int mo_state_write(
         if (!valid_token(services[i].name) ||
             !valid_token(services[i].state) ||
             services[i].failures < 0 ||
-            services[i].failures > 1000) {
+            services[i].failures > 1000 ||
+            services[i].exit_kind < 0 ||
+            services[i].exit_kind > 2 ||
+            services[i].exit_value < 0 ||
+            services[i].exit_value > 255 ||
+            (services[i].exit_kind == 0 &&
+             services[i].exit_value != 0) ||
+            (services[i].exit_kind == 2 &&
+             services[i].exit_value == 0)) {
             failed = 1;
             break;
         }
 
+        char last_exit[32];
+
+        if (services[i].exit_kind == 0) {
+            strcpy(last_exit, "none");
+        } else {
+            snprintf(
+                last_exit, sizeof(last_exit),
+                services[i].exit_kind == 1
+                    ? "exit-%d" : "signal-%d",
+                services[i].exit_value
+            );
+        }
+
         if (fprintf(
-            file, "%s=%s failures=%d\n",
+            file, "%s=%s failures=%d last_exit=%s\n",
             services[i].name,
             services[i].state,
-            services[i].failures
+            services[i].failures,
+            last_exit
         ) < 0) {
             failed = 1;
             break;
