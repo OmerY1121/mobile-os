@@ -12,7 +12,7 @@ from pathlib import Path
 
 checks = {
     "ARM system boot":
-        r"Mobile OS 0\.0\.7-dev",
+        r"Mobile OS 0\.0\.7\b",
     "Private filesystem":
         r"statusd private tmpfs ready",
     "Restricted proc":

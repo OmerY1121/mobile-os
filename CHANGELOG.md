@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.7 - ARMv7 support
+
+- Added ARMv7 cross-compilation.
+- Tested IPC commands under ARM emulation.
+- Booted Mobile OS in ARM QEMU.
+- Added automated ARM boot checks.
+- Added Galaxy S3 GT-I9300 image preparation scripts.
+- Added offline boot image validation and packaging.
+- Physical hardware boot remains untested.
+
+
 ## v0.0.6
 
 - Added PID namespace isolation for statusd.

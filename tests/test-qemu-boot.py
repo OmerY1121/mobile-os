@@ -13,7 +13,7 @@ from pathlib import Path
 TIMEOUT = 45
 
 checks = {
-    "System version": r"Mobile OS 0\.0\.7-dev",
+    "System version": r"Mobile OS 0\.0\.7\b",
     "Private filesystem": r"statusd private tmpfs ready",
     "Restricted proc": r"statusd restricted /proc ready",
     "PID namespace": r"namespace supervisor running as PID 1",

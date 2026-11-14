@@ -71,7 +71,7 @@ check(
 arm_init = Path("build/armv7/init").read_bytes()
 
 check(
-    b"Mobile OS 0.0.7-dev" in arm_init,
+    b"Mobile OS 0.0.7" in arm_init,
     "ARMv7 development version"
 )
 

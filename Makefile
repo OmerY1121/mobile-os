@@ -71,3 +71,8 @@ test-all:
 .PHONY: test-arm-boot
 test-arm-boot:
 	python3 tests/test-armv7-boot.py
+
+
+.PHONY: package-s3
+package-s3:
+	bash scripts/package-s3-candidate.sh
