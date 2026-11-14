@@ -2,6 +2,7 @@
 
 import gzip
 import struct
+import subprocess
 from pathlib import Path
 
 base = Path("build/s3")
@@ -71,13 +72,43 @@ check(
 arm_init = Path("build/armv7/init").read_bytes()
 
 check(
-    b"Mobile OS 0.0.7" in arm_init,
+    b"Mobile OS 0.0.8-dev" in arm_init,
     "ARMv7 development version"
 )
 
 check(
     len(image) <= 8 * 1024 * 1024,
     "Image within 8 MiB"
+)
+
+
+archive = gzip.decompress(ramdisk)
+
+listing = subprocess.run(
+    ["cpio", "--quiet", "-t"],
+    input=archive,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    check=True
+)
+
+present = {
+    name.removeprefix("./")
+    for name in listing.stdout.decode().splitlines()
+}
+
+required = {
+    "init",
+    "bin/statusd",
+    "bin/statusctl",
+    "bin/logd",
+    "bin/logctl",
+    "etc/mobile-os/services.conf",
+}
+
+check(
+    required.issubset(present),
+    "Initramfs includes all services"
 )
 
 print("\nAll offline S3 image checks passed.")

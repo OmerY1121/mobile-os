@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include "service_query.h"
 #include "log_client.h"
 #include <sys/prctl.h>
 #include <errno.h>
@@ -160,6 +161,7 @@ int main(void)
         }
 
         char uptime_reply[64];
+        char services_reply[256];
         const char *reply;
 
         if (n < 0) {
@@ -181,6 +183,19 @@ int main(void)
                          "statusd: uptime %lds\n", seconds);
                 reply = uptime_reply;
             }
+        } else if (strcmp(request, "SERVICES\n") == 0) {
+            const char *path =
+                getenv("MOBILE_OS_STATE_FILE");
+
+            if (!path || !*path)
+                path = "/run/mobile-os-state/services";
+
+            if (mo_query_services(
+                    path, services_reply,
+                    sizeof(services_reply)) == 0)
+                reply = services_reply;
+            else
+                reply = "statusd: state unavailable\n";
         } else {
             reply = "statusd: unknown command\n";
         }

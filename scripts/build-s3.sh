@@ -5,8 +5,14 @@ cd "$(dirname "$0")/.."
 
 mkdir -p build/armv7
 
-for program in init statusd statusctl; do
+for program in init statusd statusctl logd logctl; do
     echo "Building $program for Galaxy S3..."
+
+    sources=("src/$program.c")
+
+    if [[ "$program" == "init" ]]; then
+        sources+=(src/service_config.c)
+    fi
 
     arm-linux-gnueabihf-gcc \
         -static -O2 -Wall -Wextra -Werror \
@@ -14,7 +20,7 @@ for program in init statusd statusctl; do
         -mfpu=vfpv3-d16 \
         -mfloat-abi=hard \
         -o "build/armv7/$program" \
-        "src/$program.c"
+        "${sources[@]}"
 done
 
 echo

@@ -10,7 +10,7 @@ REFS="build/s3/references"
 echo "Building current ARMv7 programs..."
 bash scripts/build-s3.sh
 
-for program in init statusd statusctl; do
+for program in init statusd statusctl logd logctl; do
     file "build/armv7/$program" | grep -q ARM || {
         echo "Not an ARM binary: $program"
         exit 1
@@ -70,9 +70,20 @@ install -m 0755 build/armv7/statusd \
 install -m 0755 build/armv7/statusctl \
     "$ROOTFS/bin/statusctl"
 
+install -m 0755 build/armv7/logd \
+    "$ROOTFS/bin/logd"
+
+install -m 0755 build/armv7/logctl \
+    "$ROOTFS/bin/logctl"
+
+install -D -m 0600 config/services.conf \
+    "$ROOTFS/etc/mobile-os/services.conf"
+
 fakeroot bash -c '
 set -euo pipefail
 cd "$1"
+chown 0:0 etc/mobile-os/services.conf
+chmod 0600 etc/mobile-os/services.conf
 
 mknod -m 600 dev/console c 5 1
 mknod -m 666 dev/null c 1 3
@@ -88,7 +99,7 @@ echo "Checking initramfs contents..."
 gzip -dc "$OUTPUT" |
     cpio --quiet -t |
     grep -E \
-    '^(\./)?(init|bin/statusd|bin/statusctl|dev/console)$'
+    '^(\./)?(init|bin/statusd|bin/statusctl|bin/logd|bin/logctl|dev/console)$'
 
 echo
 sha256sum "$OUTPUT"

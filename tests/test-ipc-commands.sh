@@ -16,6 +16,11 @@ cleanup() {
 trap cleanup EXIT
 
 export MOBILE_OS_SOCKET="$TEST_DIR/status.sock"
+export MOBILE_OS_STATE_FILE="$TEST_DIR/services"
+
+printf 'logd=launched failures=0\nstatusd=launched failures=0\n' \
+    > "$MOBILE_OS_STATE_FILE"
+chmod 0600 "$MOBILE_OS_STATE_FILE"
 
 ./build/statusd > "$TEST_DIR/server.log" 2>&1 &
 SERVER_PID=$!
@@ -44,4 +49,27 @@ if [[ ! "$UPTIME" =~ ^statusd:\ uptime\ [0-9]+s$ ]]; then
 fi
 
 echo "PASS: uptime command"
+actual=$(./build/statusctl services)
+
+expected="services: logd=launched failures=0; statusd=launched failures=0"
+
+if [[ "$actual" != "$expected" ]]; then
+    echo "FAIL: services command"
+    echo "Received: $actual"
+    exit 1
+fi
+
+echo "PASS: services command"
+
+chmod 0666 "$MOBILE_OS_STATE_FILE"
+
+actual=$(./build/statusctl services)
+
+if [[ "$actual" != "statusd: state unavailable" ]]; then
+    echo "FAIL: unsafe state permissions accepted"
+    exit 1
+fi
+
+echo "PASS: unsafe state file rejected"
+
 echo "All command tests passed."

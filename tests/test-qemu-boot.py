@@ -20,6 +20,10 @@ checks = {
     "Service identity":
         r"statusd UID=1100 GID=1100 namespace PID=2 PPID=1",
     "Privilege protection": r"statusd: no_new_privs=1",
+    "Service state":
+        r"init: service state published",
+    "Service configuration":
+        r"init: service configuration loaded",
     "Logging service": r"logd: local logging ready",
     "Boot event stored":
         r"init: boot event logged",

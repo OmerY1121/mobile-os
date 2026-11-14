@@ -11,15 +11,17 @@ int main(int argc, char **argv)
 {
     if (argc < 2 ||
         (strcmp(argv[1], "show") != 0 &&
+         strcmp(argv[1], "boot") != 0 &&
          strcmp(argv[1], "write") != 0)) {
-        fputs("usage: logctl show | "
+        fputs("usage: logctl show | logctl boot | "
               "logctl write MESSAGE\n", stderr);
         return 2;
     }
 
     char request[512];
 
-    if (strcmp(argv[1], "show") == 0) {
+    if (strcmp(argv[1], "show") == 0 ||
+        strcmp(argv[1], "boot") == 0) {
         if (argc != 2)
             return 2;
 
@@ -99,6 +101,10 @@ int main(int argc, char **argv)
     shutdown(fd, SHUT_WR);
 
     char buf[4096];
+    char line[1024];
+    size_t line_used = 0;
+
+    int boot_mode = strcmp(argv[1], "boot") == 0;
     ssize_t n;
     int failed = 0;
     int first = 1;
@@ -109,7 +115,32 @@ int main(int argc, char **argv)
             failed = 1;
 
         first = 0;
-        fwrite(buf, 1, (size_t)n, stdout);
+
+        if (!boot_mode || failed) {
+            if (fwrite(buf, 1, (size_t)n, stdout) !=
+                (size_t)n)
+                failed = 1;
+            continue;
+        }
+
+        for (ssize_t i = 0; i < n; ++i) {
+            if (buf[i] == '\n') {
+                line[line_used] = '\0';
+
+                if (strstr(line, " init: ") ||
+                    strstr(line, " statusd: "))
+                    puts(line);
+
+                line_used = 0;
+            } else if (line_used < sizeof(line) - 1) {
+                line[line_used++] = buf[i];
+            } else {
+                fputs("logctl: log line too long\n",
+                      stderr);
+                failed = 1;
+                break;
+            }
+        }
     }
 
     if (n < 0) {

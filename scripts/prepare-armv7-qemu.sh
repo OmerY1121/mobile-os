@@ -9,7 +9,7 @@ initramfs="build/armv7/initramfs.cpio.gz"
 
 base="https://deb.debian.org/debian/dists/trixie/main/installer-armhf/current/images"
 
-for program in init statusd statusctl; do
+for program in init statusd statusctl logd logctl; do
     test -f "build/armv7/$program" || {
         echo "Missing ARM binary: $program"
         exit 1
@@ -63,12 +63,19 @@ chmod 1777 "$rootfs/tmp"
 cp build/armv7/init "$rootfs/init"
 cp build/armv7/statusd "$rootfs/bin/statusd"
 cp build/armv7/statusctl "$rootfs/bin/statusctl"
+cp build/armv7/logd "$rootfs/bin/logd"
+cp build/armv7/logctl "$rootfs/bin/logctl"
+
+install -D -m 0600 config/services.conf \
+    "$rootfs/etc/mobile-os/services.conf"
 
 echo "Creating ARMv7 initramfs..."
 
 fakeroot bash -c '
 set -euo pipefail
 cd "$1"
+chown 0:0 etc/mobile-os/services.conf
+chmod 0600 etc/mobile-os/services.conf
 
 mknod -m 600 dev/console c 5 1
 mknod -m 666 dev/null c 1 3

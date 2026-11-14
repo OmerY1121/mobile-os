@@ -13,8 +13,8 @@ all: $(INITRAMFS)
 $(BUILD):
 	mkdir -p $@
 
-$(BUILD)/init: src/init.c src/log_client.h | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD)/init: src/init.c src/log_client.h src/service_state.c src/service_state.h | $(BUILD) src/service_config.c src/service_config.h
+	$(CC) $(CFLAGS) -o $@ $< src/service_config.c src/service_state.c
 
 $(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
@@ -22,13 +22,14 @@ $(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h | $(BUILD)
 $(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl Makefile $(BUILD)/logd $(BUILD)/logctl
+$(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl Makefile $(BUILD)/logd $(BUILD)/logctl config/services.conf
 	rm -rf $(ROOTFS)
 	mkdir -p $(ROOTFS)/bin $(ROOTFS)/proc $(ROOTFS)/sys $(ROOTFS)/dev $(ROOTFS)/run/mobile-os $(ROOTFS)/var/lib/mobile-os $(ROOTFS)/tmp
 	cp $(BUILD)/init $(ROOTFS)/init
 	cp $(BUILD)/statusd $(BUILD)/statusctl $(ROOTFS)/bin/
 	cp $(BUILD)/logd $(BUILD)/logctl $(ROOTFS)/bin/
-	fakeroot sh -ec 'cd "$(ROOTFS)"; mknod -m 600 dev/console c 5 1; mknod -m 666 dev/null c 1 3; find . -print0 | cpio --null --quiet -o -H newc | gzip -9 > ../initramfs.cpio.gz'
+	install -D -m 0600 config/services.conf $(ROOTFS)/etc/mobile-os/services.conf
+	fakeroot sh -ec 'cd "$(ROOTFS)"; chown -R 0:0 etc; chmod 0600 etc/mobile-os/services.conf; mknod -m 600 dev/console c 5 1; mknod -m 666 dev/null c 1 3; find . -print0 | cpio --null --quiet -o -H newc | gzip -9 > ../initramfs.cpio.gz'
 
 run: all
 	@test -r "$(KERNEL)" || { echo "Kernel image missing: $(KERNEL)" >&2; exit 1; }
@@ -105,5 +106,3 @@ test-log-auth:
 	bash tests/test-qemu-log-auth.sh
 
 .PHONY: test-log-auth
-test-log-auth:
-	bash tests/test-qemu-log-auth.sh

@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
 #include "log_client.h"
+#include "service_config.h"
+#include "service_state.h"
 #include <sched.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -7,6 +9,7 @@
 #include <grp.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -100,6 +103,33 @@ static int prepare_logd_directory(void)
         return -1;
 
     puts("init: private log directories ready");
+    return 0;
+}
+
+
+static int prepare_state_directory(void)
+{
+    const char *path = "/run/mobile-os-state";
+
+    if (mkdir(path, 0755) < 0 && errno != EEXIST) {
+        perror("init: mkdir state");
+        return -1;
+    }
+
+    struct stat st;
+
+    if (lstat(path, &st) < 0 || !S_ISDIR(st.st_mode)) {
+        fputs("init: invalid state directory\n", stderr);
+        return -1;
+    }
+
+    if (chown(path, 0, 0) < 0 ||
+        chmod(path, 0755) < 0) {
+        perror("init: state directory permissions");
+        return -1;
+    }
+
+    puts("init: service state directory ready");
     return 0;
 }
 
@@ -285,125 +315,241 @@ static void launch_isolated_statusd(void)
 }
 
 
-static void manage_logd(void)
+
+
+
+
+
+struct managed_service {
+    const char *name;
+    const char *start_label;
+    void (*launch)(void);
+    pid_t pid;
+    time_t started;
+    time_t retry_at;
+    int failures;
+    int stopped;
+    int enabled;
+    int restart_limit;
+};
+
+static void launch_logd(void)
 {
-    int failures = 0;
-
-    for (;;) {
-        time_t started = time(NULL);
-        pid_t child = fork();
-
-        if (child < 0) {
-            perror("init: fork logd");
-            sleep(2);
-            continue;
-        }
-
-        if (child == 0) {
-            if (setgroups(0, NULL) < 0 ||
-                setgid(LOGD_GID) < 0 ||
-                setuid(LOGD_UID) < 0) {
-                perror("init: logd credentials");
-                _exit(126);
-            }
-
-            if (prctl(PR_SET_NO_NEW_PRIVS, 1L,
-                      0L, 0L, 0L) < 0) {
-                perror("init: logd no_new_privs");
-                _exit(126);
-            }
-
-            execl("/bin/logd", "logd", (char *)NULL);
-            perror("init: exec logd");
-            _exit(127);
-        }
-
-        printf("init: logd started (PID %ld)\n",
-               (long)child);
-
-        int status;
-        pid_t waited;
-
-        do {
-            waited = waitpid(child, &status, 0);
-        } while (waited < 0 && errno == EINTR);
-
-        if (waited != child) {
-            perror("init: wait logd");
-            break;
-        }
-
-        if (WIFEXITED(status) &&
-            WEXITSTATUS(status) == 0) {
-            puts("init: logd stopped normally");
-            break;
-        }
-
-        if (time(NULL) - started >= STABLE_SECONDS)
-            failures = 0;
-
-        if (++failures >= MAX_QUICK_FAILURES) {
-            puts("init: logd restart limit reached");
-            break;
-        }
-
-        sleep(failures);
+    if (setgroups(0, NULL) < 0 ||
+        setgid(LOGD_GID) < 0 ||
+        setuid(LOGD_UID) < 0) {
+        perror("init: logd credentials");
+        _exit(126);
     }
+
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1L,
+              0L, 0L, 0L) < 0) {
+        perror("init: logd no_new_privs");
+        _exit(126);
+    }
+
+    execl("/bin/logd", "logd", (char *)NULL);
+    perror("init: exec logd");
+    _exit(127);
 }
 
-static void manage_statusd(void)
+static void start_service(struct managed_service *svc)
 {
-    int quick_failures = 0;
+    pid_t child = fork();
+
+    if (child < 0) {
+        perror("init: fork service");
+        svc->retry_at = time(NULL) + 2;
+        return;
+    }
+
+    if (child == 0) {
+        svc->launch();
+        _exit(127);
+    }
+
+    svc->pid = child;
+    svc->started = time(NULL);
+
+    printf("init: %s started (PID %ld)\n",
+           svc->start_label, (long)child);
+}
+
+static void service_exited(struct managed_service *svc,
+                           int status)
+{
+    svc->pid = 0;
+
+    if (WIFEXITED(status)) {
+        printf("init: %s exited with code %d\n",
+               svc->name, WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        printf("init: %s stopped by signal %d\n",
+               svc->name, WTERMSIG(status));
+    }
+
+    if (WIFEXITED(status) &&
+        WEXITSTATUS(status) == 0) {
+        printf("init: %s stopped normally\n", svc->name);
+        svc->stopped = 1;
+        return;
+    }
+
+    if (time(NULL) - svc->started >= STABLE_SECONDS)
+        svc->failures = 0;
+
+    if (++svc->failures >= svc->restart_limit) {
+        printf("init: %s restart limit reached\n",
+               svc->name);
+        svc->stopped = 1;
+        return;
+    }
+
+    svc->retry_at = time(NULL) + svc->failures;
+}
+
+
+static void publish_service_states(
+    const struct managed_service *services,
+    size_t count)
+{
+    if (count == 0 || count > 16)
+        return;
+
+    struct mo_service_state entries[16];
+    char signature[1024] = {0};
+    size_t used = 0;
+
+    static char previous[1024];
+
+    for (size_t i = 0; i < count; ++i) {
+        const struct managed_service *svc = &services[i];
+        const char *state;
+
+        if (!svc->enabled)
+            state = "disabled";
+        else if (svc->pid > 0)
+            state = "launched";
+        else if (svc->stopped)
+            state = svc->failures >= svc->restart_limit ?
+                "failed" : "stopped";
+        else
+            state = "retrying";
+
+        entries[i].name = svc->name;
+        entries[i].state = state;
+        entries[i].failures = svc->failures;
+
+        int n = snprintf(
+            signature + used, sizeof(signature) - used,
+            "%s=%s:%d;", svc->name, state, svc->failures
+        );
+
+        if (n < 0 ||
+            (size_t)n >= sizeof(signature) - used)
+            return;
+
+        used += (size_t)n;
+    }
+
+    if (strcmp(previous, signature) == 0)
+        return;
+
+    if (mo_state_write(
+            "/run/mobile-os-state/services",
+            entries, count) < 0) {
+        perror("init: publish service state");
+        return;
+    }
+
+    strcpy(previous, signature);
+    puts("init: service state published");
+}
+
+static void manage_services(
+    const struct mo_service_config *config)
+{
+    struct managed_service services[] = {
+        {
+            .name = "logd",
+            .start_label = "logd",
+            .launch = launch_logd,
+            .enabled = config->logd_enabled,
+            .restart_limit = config->logd_restart_limit
+        },
+        {
+            .name = "statusd",
+            .start_label = "statusd launcher",
+            .launch = launch_isolated_statusd,
+            .enabled = config->statusd_enabled,
+            .restart_limit = config->statusd_restart_limit
+        }
+    };
+
+    const size_t count =
+        sizeof(services) / sizeof(services[0]);
+
+    if (services[0].enabled) {
+        start_service(&services[0]);
+
+        int logged = 0;
+
+        for (int attempt = 0; attempt < 40; ++attempt) {
+            if (mo_log_event("init: boot services starting") == 0) {
+                logged = 1;
+                break;
+            }
+
+            usleep(50000);
+        }
+
+        puts(logged ? "init: boot event logged"
+                    : "init: boot event unavailable");
+    } else {
+        puts("init: logd disabled by config");
+    }
+
+    if (services[1].enabled)
+        start_service(&services[1]);
+    else
+        puts("init: statusd disabled by config");
+
+    publish_service_states(services, count);
+    puts("init: service manager ready");
 
     for (;;) {
-        time_t started = time(NULL);
-        pid_t child = fork();
-
-        if (child < 0) {
-            perror("init: fork");
-            sleep(2);
-            continue;
-        }
-
-        if (child == 0)
-            launch_isolated_statusd();
-
-        printf("init: statusd launcher started (PID %ld)\n",
-               (long)child);
-
         int status;
+        pid_t child;
 
-        while (waitpid(child, &status, 0) < 0) {
-            if (errno == EINTR)
-                continue;
-
-            perror("init: waitpid");
-            return;
+        while ((child = waitpid(-1, &status,
+                                WNOHANG)) > 0) {
+            for (size_t i = 0; i < count; ++i) {
+                if (services[i].pid == child) {
+                    service_exited(&services[i], status);
+                    break;
+                }
+            }
         }
 
-        if (WIFEXITED(status)) {
-            printf("init: statusd exited with code %d\n",
-                   WEXITSTATUS(status));
-        } else if (WIFSIGNALED(status)) {
-            printf("init: statusd stopped by signal %d\n",
-                   WTERMSIG(status));
+        if (child < 0 &&
+            errno != ECHILD &&
+            errno != EINTR)
+            perror("init: waitpid services");
+
+        time_t now = time(NULL);
+
+        for (size_t i = 0; i < count; ++i) {
+            struct managed_service *svc = &services[i];
+
+            if (svc->enabled &&
+                !svc->stopped &&
+                svc->pid == 0 &&
+                now >= svc->retry_at)
+                start_service(svc);
         }
 
-        if (WIFEXITED(status) &&
-            WEXITSTATUS(status) == 0) {
-            puts("init: statusd stopped normally");
-            break;
-        }
-
-        if (time(NULL) - started >= STABLE_SECONDS)
-            quick_failures = 0;
-
-        if (++quick_failures >= MAX_QUICK_FAILURES) {
-            puts("init: statusd restart limit reached");
-            break;
-        }
-
-        sleep(quick_failures);
+        publish_service_states(services, count);
+        sleep(1);
     }
 }
 
@@ -423,33 +569,19 @@ int main(void)
 
     if (prepare_private_storage() == 0 &&
         prepare_statusd_directory() == 0 &&
-        prepare_logd_directory() == 0) {
-        pid_t manager = fork();
+        prepare_logd_directory() == 0 &&
+        prepare_state_directory() == 0) {
+        struct mo_service_config config;
 
-        if (manager < 0) {
-            perror("init: fork logd manager");
-        } else if (manager == 0) {
-            manage_logd();
-            _exit(0);
+        if (mo_service_config_load(
+                "/etc/mobile-os/services.conf",
+                &config) == 0) {
+            puts("init: service configuration loaded");
+            manage_services(&config);
+        } else {
+            fputs("init: invalid service configuration\n",
+                  stderr);
         }
-
-        int logged = 0;
-
-        for (int attempt = 0; attempt < 40; ++attempt) {
-            if (mo_log_event("init: boot services starting") == 0) {
-                logged = 1;
-                break;
-            }
-
-            usleep(50000);
-        }
-
-        if (logged)
-            puts("init: boot event logged");
-        else
-            puts("init: boot event unavailable");
-
-        manage_statusd();
     } else {
         fputs("init: service setup failed\n", stderr);
     }

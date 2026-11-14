@@ -44,6 +44,21 @@ grep -q 'boot started' <<< "$output"
 grep -q 'statusd ready' <<< "$output"
 echo "PASS: log reading"
 
+[[ "$(./build/logctl write 'init: boot services starting')" == "OK" ]]
+[[ "$(./build/logctl write 'statusd: IPC ready')" == "OK" ]]
+
+boot_output=$(./build/logctl boot)
+
+grep -qF 'init: boot services starting' <<< "$boot_output"
+grep -qF 'statusd: IPC ready' <<< "$boot_output"
+
+if grep -qF 'statusd ready' <<< "$boot_output"; then
+    echo "FAIL: unrelated event in boot log"
+    exit 1
+fi
+
+echo "PASS: boot event filtering"
+
 grep -Eq \
     '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z ' \
     <<< "$output"

@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-VERSION="0.0.7"
+VERSION="0.0.8-dev"
 BASE="build/s3"
 PACKAGE="$BASE/candidate-$VERSION"
 ARCHIVE="$BASE/mobile-os-s3-$VERSION-UNTESTED.tar.gz"

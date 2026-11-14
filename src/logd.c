@@ -202,6 +202,62 @@ static int show_file(int client, const char *path)
     return 0;
 }
 
+
+static int bind_log_socket(
+    int server, const struct sockaddr_un *address)
+{
+    socklen_t length = sizeof(*address);
+
+    if (bind(server, (const struct sockaddr *)address,
+             length) == 0)
+        return 0;
+
+    if (errno != EADDRINUSE)
+        return -1;
+
+    struct stat st;
+
+    if (lstat(address->sun_path, &st) < 0)
+        return -1;
+
+    if (!S_ISSOCK(st.st_mode) ||
+        st.st_uid != geteuid()) {
+        errno = EADDRINUSE;
+        return -1;
+    }
+
+    int probe = socket(AF_UNIX,
+                       SOCK_STREAM | SOCK_CLOEXEC, 0);
+
+    if (probe < 0)
+        return -1;
+
+    int connected = connect(
+        probe, (const struct sockaddr *)address, length);
+
+    int error = errno;
+    close(probe);
+
+    if (connected == 0) {
+        errno = EADDRINUSE;
+        return -1;
+    }
+
+    if (error != ECONNREFUSED) {
+        errno = error;
+        return -1;
+    }
+
+    if (unlink(address->sun_path) < 0)
+        return -1;
+
+    puts("logd: removed stale socket");
+
+    return bind(server,
+                (const struct sockaddr *)address,
+                length);
+}
+
 int main(void)
 {
     const char *socket_path =
@@ -232,8 +288,7 @@ int main(void)
                         SOCK_STREAM | SOCK_CLOEXEC, 0);
 
     if (server < 0 ||
-        bind(server, (struct sockaddr *)&address,
-             sizeof(address)) < 0 ||
+        bind_log_socket(server, &address) < 0 ||
         listen(server, 8) < 0) {
         perror("logd: socket setup");
         if (server >= 0)
