@@ -13,20 +13,21 @@ all: $(INITRAMFS)
 $(BUILD):
 	mkdir -p $@
 
-$(BUILD)/init: src/init.c | $(BUILD)
+$(BUILD)/init: src/init.c src/log_client.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(BUILD)/statusd: src/statusd.c src/ipc_io.h | $(BUILD)
+$(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
 $(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl Makefile
+$(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl Makefile $(BUILD)/logd $(BUILD)/logctl
 	rm -rf $(ROOTFS)
 	mkdir -p $(ROOTFS)/bin $(ROOTFS)/proc $(ROOTFS)/sys $(ROOTFS)/dev $(ROOTFS)/run/mobile-os $(ROOTFS)/var/lib/mobile-os $(ROOTFS)/tmp
 	cp $(BUILD)/init $(ROOTFS)/init
 	cp $(BUILD)/statusd $(BUILD)/statusctl $(ROOTFS)/bin/
+	cp $(BUILD)/logd $(BUILD)/logctl $(ROOTFS)/bin/
 	fakeroot sh -ec 'cd "$(ROOTFS)"; mknod -m 600 dev/console c 5 1; mknod -m 666 dev/null c 1 3; find . -print0 | cpio --null --quiet -o -H newc | gzip -9 > ../initramfs.cpio.gz'
 
 run: all
@@ -42,7 +43,7 @@ run: all
 		-no-reboot
 
 clean:
-	rm -rf $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl $(ROOTFS) $(INITRAMFS)
+	rm -rf $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl $(ROOTFS) $(INITRAMFS) $(BUILD)/logd $(BUILD)/logctl
 
 test: $(BUILD)/statusd $(BUILD)/statusctl
 	bash tests/test-ipc.sh
@@ -76,3 +77,33 @@ test-arm-boot:
 .PHONY: package-s3
 package-s3:
 	bash scripts/package-s3-candidate.sh
+
+.PHONY: log-tools test-logs
+
+log-tools: build/logd build/logctl
+
+build/logd: src/logd.c
+	@mkdir -p build
+	$(CC) -static -O2 -Wall -Wextra -Werror -o $@ $<
+
+build/logctl: src/logctl.c
+	@mkdir -p build
+	$(CC) -static -O2 -Wall -Wextra -Werror -o $@ $<
+
+test-logs: log-tools
+	bash tests/test-logs.sh
+
+
+.PHONY: check
+check:
+	$(MAKE) all
+	$(MAKE) test-all
+	$(MAKE) test-logs
+
+.PHONY: test-log-auth
+test-log-auth:
+	bash tests/test-qemu-log-auth.sh
+
+.PHONY: test-log-auth
+test-log-auth:
+	bash tests/test-qemu-log-auth.sh

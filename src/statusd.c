@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include "log_client.h"
 #include <sys/prctl.h>
 #include <errno.h>
 #include <stdio.h>
@@ -86,6 +87,9 @@ int main(void)
 
     printf("statusd: no_new_privs=%d\n", nnp);
     puts("statusd: local IPC ready");
+
+    if (mo_log_event("statusd: IPC ready") == 0)
+        puts("statusd: boot event logged");
 
     struct timespec started;
 

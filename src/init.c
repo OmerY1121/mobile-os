@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include "log_client.h"
 #include <sched.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -14,6 +15,8 @@
 
 #define STATUSD_UID 1100
 #define STATUSD_GID 1100
+#define LOGD_UID 1101
+#define LOGD_GID 1101
 
 #define MAX_QUICK_FAILURES 3
 #define STABLE_SECONDS 30
@@ -77,6 +80,28 @@ static int prepare_private_storage(void)
     return 0;
 }
 
+
+
+static int prepare_logd_directory(void)
+{
+    if (setup_private_directory(
+            "/run/mobile-os-logs",
+            LOGD_UID, STATUSD_GID) < 0)
+        return -1;
+
+    if (chmod("/run/mobile-os-logs", 0710) < 0) {
+        perror("init: log socket directory");
+        return -1;
+    }
+
+    if (setup_private_directory(
+            "/run/mobile-os-logdata",
+            LOGD_UID, LOGD_GID) < 0)
+        return -1;
+
+    puts("init: private log directories ready");
+    return 0;
+}
 
 static int isolate_statusd_mounts(void)
 {
@@ -259,6 +284,73 @@ static void launch_isolated_statusd(void)
     _exit(wait_for_service(ns_init));
 }
 
+
+static void manage_logd(void)
+{
+    int failures = 0;
+
+    for (;;) {
+        time_t started = time(NULL);
+        pid_t child = fork();
+
+        if (child < 0) {
+            perror("init: fork logd");
+            sleep(2);
+            continue;
+        }
+
+        if (child == 0) {
+            if (setgroups(0, NULL) < 0 ||
+                setgid(LOGD_GID) < 0 ||
+                setuid(LOGD_UID) < 0) {
+                perror("init: logd credentials");
+                _exit(126);
+            }
+
+            if (prctl(PR_SET_NO_NEW_PRIVS, 1L,
+                      0L, 0L, 0L) < 0) {
+                perror("init: logd no_new_privs");
+                _exit(126);
+            }
+
+            execl("/bin/logd", "logd", (char *)NULL);
+            perror("init: exec logd");
+            _exit(127);
+        }
+
+        printf("init: logd started (PID %ld)\n",
+               (long)child);
+
+        int status;
+        pid_t waited;
+
+        do {
+            waited = waitpid(child, &status, 0);
+        } while (waited < 0 && errno == EINTR);
+
+        if (waited != child) {
+            perror("init: wait logd");
+            break;
+        }
+
+        if (WIFEXITED(status) &&
+            WEXITSTATUS(status) == 0) {
+            puts("init: logd stopped normally");
+            break;
+        }
+
+        if (time(NULL) - started >= STABLE_SECONDS)
+            failures = 0;
+
+        if (++failures >= MAX_QUICK_FAILURES) {
+            puts("init: logd restart limit reached");
+            break;
+        }
+
+        sleep(failures);
+    }
+}
+
 static void manage_statusd(void)
 {
     int quick_failures = 0;
@@ -324,16 +416,43 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.7");
+    puts("Mobile OS 0.0.8-dev");
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
 
     if (prepare_private_storage() == 0 &&
-        prepare_statusd_directory() == 0)
+        prepare_statusd_directory() == 0 &&
+        prepare_logd_directory() == 0) {
+        pid_t manager = fork();
+
+        if (manager < 0) {
+            perror("init: fork logd manager");
+        } else if (manager == 0) {
+            manage_logd();
+            _exit(0);
+        }
+
+        int logged = 0;
+
+        for (int attempt = 0; attempt < 40; ++attempt) {
+            if (mo_log_event("init: boot services starting") == 0) {
+                logged = 1;
+                break;
+            }
+
+            usleep(50000);
+        }
+
+        if (logged)
+            puts("init: boot event logged");
+        else
+            puts("init: boot event unavailable");
+
         manage_statusd();
-    else
-        fputs("init: statusd not started\n", stderr);
+    } else {
+        fputs("init: service setup failed\n", stderr);
+    }
 
     for (;;)
         pause();
