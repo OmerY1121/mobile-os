@@ -1,4 +1,4 @@
-name: Mobile OS CI
+name: Selyra OS CI
 
 on:
   push:

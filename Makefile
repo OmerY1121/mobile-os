@@ -13,11 +13,11 @@ all: $(INITRAMFS)
 $(BUILD):
 	mkdir -p $@
 
-$(BUILD)/init: src/init.c src/log_client.h src/service_state.c src/service_state.h | $(BUILD) src/service_config.c src/service_config.h
-	$(CC) $(CFLAGS) -o $@ $< src/service_config.c src/service_state.c
+$(BUILD)/init: src/init.c src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h | $(BUILD) src/service_config.c src/service_config.h
+	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/service_config.c src/service_state.c src/power_control.c src/power_socket.c
 
-$(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h src/memory_info.h src/cpu_info.h src/cpu_info.c src/system_info.h VERSION | $(BUILD)
+	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/cpu_info.c
 
 $(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
@@ -95,14 +95,44 @@ test-logs: log-tools
 	bash tests/test-logs.sh
 
 
+.PHONY: test-memory
+test-memory:
+	$(CC) $(CFLAGS) -o $(BUILD)/test-memory-info tests/test-memory-info.c
+	./$(BUILD)/test-memory-info
+
+.PHONY: test-cpu
+test-cpu: | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/test-cpu-info tests/test-cpu-info.c src/cpu_info.c
+	./$(BUILD)/test-cpu-info
+
+.PHONY: test-system
+test-system: | $(BUILD)
+	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $(BUILD)/test-system-info tests/test-system-info.c
+	./$(BUILD)/test-system-info
+
 .PHONY: check
 check:
 	$(MAKE) all
 	$(MAKE) test-all
 	$(MAKE) test-logs
+	$(MAKE) test-memory
+	$(MAKE) test-cpu
+	$(MAKE) test-system
+	$(MAKE) test-power
+	$(MAKE) test-power-socket
 
 .PHONY: test-log-auth
 test-log-auth:
 	bash tests/test-qemu-log-auth.sh
 
 .PHONY: test-log-auth
+
+.PHONY: test-power
+test-power: | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/test-power-control tests/test-power-control.c src/power_control.c
+	./$(BUILD)/test-power-control
+
+.PHONY: test-power-socket
+test-power-socket: | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/test-power-socket tests/test-power-socket.c src/power_socket.c src/power_control.c
+	./$(BUILD)/test-power-socket

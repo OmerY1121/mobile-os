@@ -49,6 +49,54 @@ if [[ ! "$UPTIME" =~ ^statusd:\ uptime\ [0-9]+s$ ]]; then
 fi
 
 echo "PASS: uptime command"
+
+MEMORY=$(./build/statusctl memory)
+
+if [[ ! "$MEMORY" =~ ^memory:\ total=([0-9]+)KiB\ available=([0-9]+)KiB\ used=([0-9]+)KiB$ ]]; then
+    echo "FAIL: memory command: $MEMORY"
+    exit 1
+fi
+
+TOTAL=${BASH_REMATCH[1]}
+AVAILABLE=${BASH_REMATCH[2]}
+USED=${BASH_REMATCH[3]}
+
+if (( TOTAL <= 0 || AVAILABLE > TOTAL || USED != TOTAL - AVAILABLE )); then
+    echo "FAIL: inconsistent memory values"
+    exit 1
+fi
+
+echo "PASS: memory command"
+
+CPU_OUTPUT=$(./build/statusctl cpu)
+
+if [[ "$CPU_OUTPUT" =~ ^cpu:\ cores=([0-9]+)\ usage=([0-9]+)\.([0-9])%$ ]]; then
+    CORES=${BASH_REMATCH[1]}
+    WHOLE=${BASH_REMATCH[2]}
+    if (( CORES < 1 || WHOLE > 100 )); then
+        echo "FAIL: invalid CPU values"
+        exit 1
+    fi
+else
+    echo "FAIL: CPU command: $CPU_OUTPUT"
+    exit 1
+fi
+
+echo "PASS: CPU command"
+
+SYSTEM_OUTPUT=$(./build/statusctl system)
+EXPECTED_PREFIX="system: os=Selyra OS version=$(cat VERSION) kernel="
+
+if [[ "$SYSTEM_OUTPUT" != "$EXPECTED_PREFIX"* ]] ||
+   [[ ! "$SYSTEM_OUTPUT" =~ [[:space:]]arch=[^[:space:]]+[[:space:]]uptime=[0-9]+s$ ]]; then
+    echo "FAIL: system command: $SYSTEM_OUTPUT"
+    exit 1
+fi
+
+echo "PASS: system command"
+
+
+
 actual=$(./build/statusctl services)
 
 expected="services: logd=launched failures=0; statusd=launched failures=0"

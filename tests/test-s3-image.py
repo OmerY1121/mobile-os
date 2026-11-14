@@ -61,7 +61,7 @@ command_line = image[64:576].split(b"\0", 1)[0]
 
 check(
     b"rdinit=/init" in command_line,
-    "Mobile OS init selected"
+    "Selyra OS init selected"
 )
 
 check(
@@ -72,7 +72,7 @@ check(
 arm_init = Path("build/armv7/init").read_bytes()
 
 check(
-    b"Mobile OS 0.0.8" in arm_init,
+    f"Selyra OS {Path('VERSION').read_text().strip()}".encode() in arm_init,
     "ARMv7 release version"
 )
 

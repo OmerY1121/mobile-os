@@ -45,7 +45,7 @@ grep -Fxq \
 
 echo "PASS: Galaxy S3 device metadata verified"
 
-echo "Preparing Mobile OS initramfs..."
+echo "Preparing Selyra OS initramfs..."
 
 rm -rf "$ROOTFS"
 

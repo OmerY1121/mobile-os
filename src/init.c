@@ -2,6 +2,7 @@
 #include "log_client.h"
 #include "service_config.h"
 #include "service_state.h"
+#include "power_socket.h"
 #include <sched.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -106,6 +107,28 @@ static int prepare_logd_directory(void)
     return 0;
 }
 
+
+static int prepare_power_directory(void)
+{
+    const char *path = "/run/selyra-power";
+
+    if (mkdir(path, 0700) < 0 && errno != EEXIST) {
+        perror("init: mkdir power directory");
+        return -1;
+    }
+
+    struct stat st;
+
+    if (lstat(path, &st) < 0 ||
+        !S_ISDIR(st.st_mode) ||
+        st.st_uid != 0 ||
+        chmod(path, 0700) < 0) {
+        fputs("init: insecure power directory\n", stderr);
+        return -1;
+    }
+
+    return 0;
+}
 
 static int prepare_state_directory(void)
 {
@@ -495,7 +518,7 @@ static void publish_service_states(
 }
 
 static void manage_services(
-    const struct mo_service_config *config)
+    const struct mo_service_config *config, int power_fd)
 {
     struct managed_service services[] = {
         {
@@ -576,6 +599,20 @@ static void manage_services(
                 start_service(svc);
         }
 
+        enum selyra_power_action action;
+
+        int power_result =
+            selyra_power_socket_poll(power_fd, &action);
+
+        if (power_result < 0) {
+            perror("init: power control poll");
+        } else if (power_result == 1) {
+            printf(
+                "init: %s request authenticated (activation pending)\n",
+                action == SELYRA_POWER_OFF
+                    ? "poweroff" : "reboot");
+        }
+
         publish_service_states(services, count);
         sleep(1);
     }
@@ -590,22 +627,30 @@ int main(void)
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    puts("Mobile OS 0.0.8");
+    puts("Selyra OS " SELYRA_VERSION);
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
 
+    int power_fd = -1;
+
     if (prepare_private_storage() == 0 &&
         prepare_statusd_directory() == 0 &&
         prepare_logd_directory() == 0 &&
-        prepare_state_directory() == 0) {
+        prepare_state_directory() == 0 &&
+        prepare_power_directory() == 0 &&
+        (power_fd = selyra_power_socket_open(
+            "/run/selyra-power/control.sock")) >= 0) {
+
+        puts("init: power control socket ready");
+
         struct mo_service_config config;
 
         if (mo_service_config_load(
                 "/etc/mobile-os/services.conf",
                 &config) == 0) {
             puts("init: service configuration loaded");
-            manage_services(&config);
+            manage_services(&config, power_fd);
         } else {
             fputs("init: invalid service configuration\n",
                   stderr);

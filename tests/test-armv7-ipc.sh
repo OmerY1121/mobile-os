@@ -86,4 +86,25 @@ else
 fi
 
 echo
+
+CPU_OUTPUT=$(qemu-arm build/armv7/statusctl cpu)
+
+if [[ "$CPU_OUTPUT" =~ ^cpu:\ cores=[1-9][0-9]*\ usage=([0-9]+)\.([0-9])%$ ]]; then
+    echo "PASS: ARMv7 CPU command"
+else
+    echo "FAIL: ARMv7 CPU command: $CPU_OUTPUT"
+    exit 1
+fi
+
+
+SYSTEM_OUTPUT=$(qemu-arm build/armv7/statusctl system)
+
+if [[ "$SYSTEM_OUTPUT" == "system: os=Selyra OS version=$(cat VERSION) kernel="* ]] &&
+   [[ "$SYSTEM_OUTPUT" =~ [[:space:]]arch=[^[:space:]]+[[:space:]]uptime=[0-9]+s$ ]]; then
+    echo "PASS: ARMv7 system command"
+else
+    echo "FAIL: ARMv7 system command: $SYSTEM_OUTPUT"
+    exit 1
+fi
+
 echo "All ARMv7 IPC tests passed."

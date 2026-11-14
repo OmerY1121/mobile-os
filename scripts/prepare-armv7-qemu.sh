@@ -44,7 +44,7 @@ fi
 printf '%s  %s\n' "$expected" "$kernel" |
     sha256sum -c -
 
-echo "Preparing Mobile OS rootfs..."
+echo "Preparing Selyra OS rootfs..."
 
 rm -rf "$rootfs"
 

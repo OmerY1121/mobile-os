@@ -3,12 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-VERSION="0.0.8-dev"
+VERSION=$(tr -d '\r\n' < VERSION)
 BASE="build/s3"
 PACKAGE="$BASE/candidate-$VERSION"
-ARCHIVE="$BASE/mobile-os-s3-$VERSION-UNTESTED.tar.gz"
+ARCHIVE="$BASE/selyra-os-s3-$VERSION-UNTESTED.tar.gz"
 
-echo "Building Mobile OS for Galaxy S3..."
+echo "Building Selyra OS for Galaxy S3..."
 
 bash scripts/build-s3.sh
 bash scripts/prepare-s3.sh
@@ -37,8 +37,8 @@ cp "$BASE/kernel/config" \
 cp "$BASE/references/deviceinfo" \
    "$PACKAGE/deviceinfo"
 
-cat > "$PACKAGE/README.txt" <<'NOTES'
-Mobile OS v0.0.7
+cat > "$PACKAGE/README.txt" <<NOTES
+Selyra OS v$VERSION
 Galaxy S3 GT-I9300 hardware test candidate
 
 This package is not verified for flashing.
@@ -46,7 +46,7 @@ This package is not verified for flashing.
 Target: Samsung Galaxy S III GT-I9300
 Architecture: ARMv7
 Kernel: postmarketOS Exynos4
-Init: Mobile OS
+Init: Selyra OS
 
 Verified:
 - ARMv7 binaries compile

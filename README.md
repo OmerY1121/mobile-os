@@ -1,4 +1,4 @@
-# Mobile OS
+# Selyra OS
 
 An experimental Linux-based mobile operating system.
 
@@ -6,6 +6,10 @@ The project is still in early development.
 The long-term goal is to build an open-source
 mobile platform focused on privacy, user control
 and long-term device support.
+
+Starting with v0.0.9, Mobile OS is named Selyra OS.
+Earlier releases retain their original name.
+Version 0.0.9 is currently in development.
 
 ## Current state
 
@@ -44,7 +48,7 @@ build/vmlinuz before running QEMU.
 Release notes are available in docs/releases/.
 
 
-## Development status (v0.0.8)
+## Latest published release (v0.0.8)
 
 v0.0.8 adds local logging, configurable service management,
 service status reporting and health checks. The system boots
