@@ -54,9 +54,9 @@ mkdir -p \
     "$rootfs/sys" \
     "$rootfs/dev" \
     "$rootfs/tmp" \
-    "$rootfs/run/mobile-os" \
-    "$rootfs/var/lib/mobile-os/system" \
-    "$rootfs/var/lib/mobile-os/statusd"
+    "$rootfs/run/selyra" \
+    "$rootfs/var/lib/selyra/system" \
+    "$rootfs/var/lib/selyra/statusd"
 
 chmod 1777 "$rootfs/tmp"
 
@@ -68,15 +68,15 @@ cp build/armv7/logctl "$rootfs/bin/logctl"
 cp build/armv7/powerctl "$rootfs/bin/powerctl"
 
 install -D -m 0600 config/services.conf \
-    "$rootfs/etc/mobile-os/services.conf"
+    "$rootfs/etc/selyra/services.conf"
 
 echo "Creating ARMv7 initramfs..."
 
 fakeroot bash -c '
 set -euo pipefail
 cd "$1"
-chown 0:0 etc/mobile-os/services.conf
-chmod 0600 etc/mobile-os/services.conf
+chown 0:0 etc/selyra/services.conf
+chmod 0600 etc/selyra/services.conf
 
 mknod -m 600 dev/console c 5 1
 mknod -m 666 dev/null c 1 3

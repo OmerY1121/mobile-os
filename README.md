@@ -9,7 +9,13 @@ and long-term device support.
 
 Starting with v0.0.9, Mobile OS is named Selyra OS.
 Earlier releases retain their original name.
-Version 0.0.9 is currently in development.
+Selyra OS 0.1.0 is currently in development.
+Version 0.0.9 is the latest published release.
+
+Version 0.1.0 focuses on fixes, internal naming and test improvements.
+It also introduces standard SemVer numbering for future releases.
+
+See [0.1.0 release notes](docs/releases/v0.1.0.md).
 
 ## Current state
 

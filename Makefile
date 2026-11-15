@@ -27,12 +27,12 @@ $(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
 
 $(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl $(BUILD)/powerctl Makefile $(BUILD)/logd $(BUILD)/logctl config/services.conf
 	rm -rf $(ROOTFS)
-	mkdir -p $(ROOTFS)/bin $(ROOTFS)/proc $(ROOTFS)/sys $(ROOTFS)/dev $(ROOTFS)/run/mobile-os $(ROOTFS)/var/lib/mobile-os $(ROOTFS)/tmp
+	mkdir -p $(ROOTFS)/bin $(ROOTFS)/proc $(ROOTFS)/sys $(ROOTFS)/dev $(ROOTFS)/run/selyra $(ROOTFS)/var/lib/selyra $(ROOTFS)/tmp
 	cp $(BUILD)/init $(ROOTFS)/init
 	cp $(BUILD)/statusd $(BUILD)/statusctl $(BUILD)/powerctl $(ROOTFS)/bin/
 	cp $(BUILD)/logd $(BUILD)/logctl $(ROOTFS)/bin/
-	install -D -m 0600 config/services.conf $(ROOTFS)/etc/mobile-os/services.conf
-	fakeroot sh -ec 'cd "$(ROOTFS)"; chown -R 0:0 etc; chmod 0600 etc/mobile-os/services.conf; mknod -m 600 dev/console c 5 1; mknod -m 666 dev/null c 1 3; find . -print0 | cpio --null --quiet -o -H newc | gzip -9 > ../initramfs.cpio.gz'
+	install -D -m 0600 config/services.conf $(ROOTFS)/etc/selyra/services.conf
+	fakeroot sh -ec 'cd "$(ROOTFS)"; chown -R 0:0 etc; chmod 0600 etc/selyra/services.conf; mknod -m 600 dev/console c 5 1; mknod -m 666 dev/null c 1 3; find . -print0 | cpio --null --quiet -o -H newc | gzip -9 > ../initramfs.cpio.gz'
 
 run: all
 	@test -r "$(KERNEL)" || { echo "Kernel image missing: $(KERNEL)" >&2; exit 1; }
@@ -114,7 +114,7 @@ test-system: | $(BUILD)
 	./$(BUILD)/test-system-info
 
 .PHONY: check
-check:
+check: test-version
 	$(MAKE) all
 	$(MAKE) test-all
 	$(MAKE) test-logs
@@ -178,3 +178,9 @@ test-qemu-reboot: all
 .PHONY: test-qemu-force-poweroff
 test-qemu-force-poweroff: all
 	python3 tests/test-qemu-power-transition.py poweroff --stubborn-logd
+
+
+.PHONY: test-version
+test-version:
+	python3 scripts/check-version.py
+	python3 tests/test-semver.py

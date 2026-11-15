@@ -4,12 +4,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Use the isolated QEMU test when sudo cannot switch users.
-if ! sudo -n -u nobody env true >/dev/null 2>&1; then
+if ! sudo -n runuser -u nobody -- env true >/dev/null 2>&1; then
     echo "INFO: sudo unavailable; testing real UIDs in QEMU"
     exec bash tests/test-qemu-ipc-auth.sh
 fi
 
-TEST_DIR=$(mktemp -d /tmp/mobile-os-auth.XXXXXX)
+TEST_DIR=$(mktemp -d /tmp/selyra-auth.XXXXXX)
 SERVER_PID=""
 
 cleanup() {
@@ -54,7 +54,7 @@ chmod 777 "$MOBILE_OS_SOCKET"
 # Unauthorized user
 cp build/statusctl "$TEST_DIR/statusctl"
 chmod 755 "$TEST_DIR/statusctl"
-if sudo -n -u nobody env \
+if sudo -n runuser -u nobody -- env \
     MOBILE_OS_SOCKET="$MOBILE_OS_SOCKET" \
     "$TEST_DIR/statusctl" \
     > "$TEST_DIR/client.log" 2>&1; then

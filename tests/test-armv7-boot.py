@@ -41,6 +41,11 @@ checks = {
         r"statusd: local IPC ready",
 }
 
+subprocess.run(
+    [sys.executable, "scripts/check-armv7-image.py"],
+    check=True,
+)
+
 kernel = Path("build/armv7/vmlinuz")
 initramfs = Path("build/armv7/initramfs.cpio.gz")
 

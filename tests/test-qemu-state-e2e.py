@@ -332,8 +332,8 @@ mkdir -p dev
 rm -f dev/console dev/null
 mknod -m 600 dev/console c 5 1
 mknod -m 666 dev/null c 1 3
-chown 0:0 etc/mobile-os/services.conf
-chmod 0600 etc/mobile-os/services.conf
+chown 0:0 etc/selyra/services.conf
+chmod 0600 etc/selyra/services.conf
 find . -print0 |
     cpio --null --quiet -o -H newc |
     gzip -9 > "$2"

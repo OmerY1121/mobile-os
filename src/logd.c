@@ -10,6 +10,7 @@
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
+#include "selyra_env.h"
 
 #define MAX_REQUEST 512
 #define MAX_LOG_BYTES (64 * 1024)
@@ -261,15 +262,15 @@ static int bind_log_socket(
 int main(void)
 {
     const char *socket_path =
-        getenv("MOBILE_OS_LOG_SOCKET");
+        selyra_env_value("SELYRA_LOG_SOCKET", "MOBILE_OS_LOG_SOCKET");
     const char *log_path =
-        getenv("MOBILE_OS_LOG_FILE");
+        selyra_env_value("SELYRA_LOG_FILE", "MOBILE_OS_LOG_FILE");
 
     if (!socket_path || !*socket_path)
-        socket_path = "/run/mobile-os-logs/log.sock";
+        socket_path = "/run/selyra-logs/log.sock";
 
     if (!log_path || !*log_path)
-        log_path = "/run/mobile-os-logdata/current.log";
+        log_path = "/run/selyra-logdata/current.log";
 
     struct sockaddr_un address = {
         .sun_family = AF_UNIX

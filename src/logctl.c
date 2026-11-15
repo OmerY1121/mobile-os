@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include "selyra_env.h"
 
 int main(int argc, char **argv)
 {
@@ -53,10 +54,10 @@ int main(int argc, char **argv)
         request[used] = '\0';
     }
 
-    const char *path = getenv("MOBILE_OS_LOG_SOCKET");
+    const char *path = selyra_env_value("SELYRA_LOG_SOCKET", "MOBILE_OS_LOG_SOCKET");
 
     if (!path || !*path)
-        path = "/run/mobile-os-logs/log.sock";
+        path = "/run/selyra-logs/log.sock";
 
     struct sockaddr_un address = {
         .sun_family = AF_UNIX

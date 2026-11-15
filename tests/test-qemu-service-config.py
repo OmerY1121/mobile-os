@@ -51,7 +51,7 @@ def prepare_image(work, case):
     rootfs = work / "rootfs"
     shutil.copytree(ROOTFS, rootfs)
 
-    config = rootfs / "etc/mobile-os/services.conf"
+    config = rootfs / "etc/selyra/services.conf"
     content = config.read_text()
 
     if content.count(case["setting"]) != 1:
@@ -70,8 +70,8 @@ def prepare_image(work, case):
 set -euo pipefail
 cd "$1"
 
-chown 0:0 etc/mobile-os/services.conf
-chmod 0600 etc/mobile-os/services.conf
+chown 0:0 etc/selyra/services.conf
+chmod 0600 etc/selyra/services.conf
 
 mkdir -p dev
 rm -f dev/console dev/null
