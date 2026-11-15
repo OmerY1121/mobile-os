@@ -29,13 +29,13 @@
 
 static int prepare_statusd_directory(void)
 {
-    if (chown("/run/mobile-os",
+    if (chown("/run/selyra",
               STATUSD_UID, STATUSD_GID) < 0) {
         perror("init: chown status directory");
         return -1;
     }
 
-    if (chmod("/run/mobile-os", 0700) < 0) {
+    if (chmod("/run/selyra", 0700) < 0) {
         perror("init: chmod status directory");
         return -1;
     }
@@ -67,18 +67,18 @@ static int setup_private_directory(
 
 static int prepare_private_storage(void)
 {
-    if (chown("/var/lib/mobile-os", 0, 0) < 0 ||
-        chmod("/var/lib/mobile-os", 0755) < 0) {
+    if (chown("/var/lib/selyra", 0, 0) < 0 ||
+        chmod("/var/lib/selyra", 0755) < 0) {
         perror("init: storage parent");
         return -1;
     }
 
     if (setup_private_directory(
-            "/var/lib/mobile-os/system", 0, 0) < 0)
+            "/var/lib/selyra/system", 0, 0) < 0)
         return -1;
 
     if (setup_private_directory(
-            "/var/lib/mobile-os/statusd",
+            "/var/lib/selyra/statusd",
             STATUSD_UID, STATUSD_GID) < 0)
         return -1;
 
@@ -91,17 +91,17 @@ static int prepare_private_storage(void)
 static int prepare_logd_directory(void)
 {
     if (setup_private_directory(
-            "/run/mobile-os-logs",
+            "/run/selyra-logs",
             LOGD_UID, STATUSD_GID) < 0)
         return -1;
 
-    if (chmod("/run/mobile-os-logs", 0710) < 0) {
+    if (chmod("/run/selyra-logs", 0710) < 0) {
         perror("init: log socket directory");
         return -1;
     }
 
     if (setup_private_directory(
-            "/run/mobile-os-logdata",
+            "/run/selyra-logdata",
             LOGD_UID, LOGD_GID) < 0)
         return -1;
 
@@ -134,7 +134,7 @@ static int prepare_power_directory(void)
 
 static int prepare_state_directory(void)
 {
-    const char *path = "/run/mobile-os-state";
+    const char *path = "/run/selyra-state";
 
     if (mkdir(path, 0755) < 0 && errno != EEXIST) {
         perror("init: mkdir state");
@@ -560,7 +560,7 @@ static void publish_service_states(
         return;
 
     if (mo_state_write(
-            "/run/mobile-os-state/services",
+            "/run/selyra-state/services",
             entries, count) < 0) {
         perror("init: publish service state");
         return;
@@ -755,7 +755,7 @@ int main(void)
         struct mo_service_config config;
 
         if (mo_service_config_load(
-                "/etc/mobile-os/services.conf",
+                "/etc/selyra/services.conf",
                 &config) == 0) {
             puts("init: service configuration loaded");
             manage_services(&config, power_fd);

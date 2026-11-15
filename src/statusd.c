@@ -16,11 +16,12 @@
 #include "memory_info.h"
 #include "cpu_info.h"
 #include "system_info.h"
+#include "selyra_env.h"
 
 static const char *socket_path(void)
 {
-    const char *env = getenv("MOBILE_OS_SOCKET");
-    return (env && *env) ? env : "/run/mobile-os/status.sock";
+    const char *env = selyra_env_value("SELYRA_SOCKET", "MOBILE_OS_SOCKET");
+    return (env && *env) ? env : "/run/selyra/status.sock";
 }
 
 
@@ -150,10 +151,10 @@ int main(void)
             close(client);
 
             const char *path =
-                getenv("MOBILE_OS_SOCKET");
+                selyra_env_value("SELYRA_SOCKET", "MOBILE_OS_SOCKET");
 
             if (path == NULL || path[0] == '\0')
-                path = "/run/mobile-os/status.sock";
+                path = "/run/selyra/status.sock";
 
             if (unlink(path) < 0)
                 perror("statusd: unlink socket");
@@ -203,10 +204,10 @@ int main(void)
                 ? system_reply : "statusd: system unavailable\n";
         } else if (strcmp(request, "SERVICES\n") == 0) {
             const char *path =
-                getenv("MOBILE_OS_STATE_FILE");
+                selyra_env_value("SELYRA_STATE_FILE", "MOBILE_OS_STATE_FILE");
 
             if (!path || !*path)
-                path = "/run/mobile-os-state/services";
+                path = "/run/selyra-state/services";
 
             if (mo_query_services(
                     path, services_reply,

@@ -2,7 +2,7 @@ name: Selyra OS CI
 
 on:
   push:
-    branches: [main, selyra-0.0.9]
+    branches: [main, selyra-0.1.0]
   pull_request:
   workflow_dispatch:
 
@@ -17,14 +17,32 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Validate SemVer
+        run: make test-version
+
       - name: Build IPC programs
         run: make build/statusd build/statusctl
 
       - name: Run IPC tests
         run: make test
 
+      - name: Verify test user permissions
+        run: |
+          test "$(sudo -n id -u)" = "0"
+          test "$(sudo -n runuser -u nobody -- id -u)" = "65534"
+
       - name: Test peer authentication
         run: bash tests/test-ipc-auth.sh
+
+      - name: Test environment compatibility
+        run: bash tests/test-env-compat.sh
+
+      - name: Check legacy technical paths
+        run: |
+          if git grep -n 'mobile-os' -- Makefile src config scripts tests; then
+            echo "::error::Legacy technical path found"
+            exit 1
+          fi
 
       - name: Build Selyra system components
         run: make build/init build/powerctl
@@ -40,3 +58,35 @@ jobs:
           make test-powerctl
           make test-shutdown-state
           make test-power-transition
+
+  armv7-qemu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install ARM build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-linux-gnueabihf \
+            libc6-dev-armhf-cross \
+            qemu-system-arm \
+            fakeroot cpio file curl
+
+      - name: Validate version
+        run: make test-version
+
+      - name: Build ARMv7 programs
+        run: bash scripts/build-s3.sh
+
+      - name: Prepare ARMv7 boot image
+        run: bash scripts/prepare-armv7-qemu.sh
+
+      - name: Verify ARMv7 image
+        run: python3 scripts/check-armv7-image.py
+
+      - name: Boot Selyra in ARM QEMU
+        run: make test-arm-boot

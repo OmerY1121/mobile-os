@@ -5,9 +5,9 @@ cd "$(dirname "$0")/.."
 
 DIR="build/s3"
 REF="$DIR/references/deviceinfo"
-RAMDISK="$DIR/mobile-os-initramfs.cpio.gz"
+RAMDISK="$DIR/selyra-initramfs.cpio.gz"
 PACKAGE="$DIR/linux-postmarketos-exynos4-7.1.1-r0.apk"
-OUTPUT="$DIR/UNTESTED-mobile-os-i9300.img"
+OUTPUT="$DIR/UNTESTED-selyra-i9300.img"
 
 URL="https://mirror.math.princeton.edu/pub/postmarketos/master/armv7/linux-postmarketos-exynos4-7.1.1-r0.apk"
 

@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "ipc_io.h"
+#include "selyra_env.h"
 
 int main(int argc, char **argv)
 {
@@ -42,9 +43,9 @@ int main(int argc, char **argv)
         }
     }
 
-    const char *env = getenv("MOBILE_OS_SOCKET");
+    const char *env = selyra_env_value("SELYRA_SOCKET", "MOBILE_OS_SOCKET");
     const char *path = (env && *env)
-        ? env : "/run/mobile-os/status.sock";
+        ? env : "/run/selyra/status.sock";
 
     struct sockaddr_un addr = {0};
 

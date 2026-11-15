@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0 (unreleased)
+
+Maintenance and naming cleanup.
+
+- Moved internal paths from Mobile OS to Selyra.
+- Added SELYRA_ environment variables with legacy compatibility.
+- Fixed native IPC authorization testing in Codespaces.
+- Added environment compatibility tests.
+- Switched future releases to three-part SemVer numbering.
+- Added ARMv7 image freshness checks.
+- Extended GitHub Actions testing.
+
+
 ## 0.0.9
 
 - Renamed the project to Selyra OS.

@@ -6,10 +6,10 @@ import subprocess
 from pathlib import Path
 
 base = Path("build/s3")
-image = (base / "UNTESTED-mobile-os-i9300.img").read_bytes()
+image = (base / "UNTESTED-selyra-i9300.img").read_bytes()
 kernel = (base / "kernel/zImage-dtb").read_bytes()
 dtb = (base / "kernel/exynos4412-i9300.dtb").read_bytes()
-ramdisk = (base / "mobile-os-initramfs.cpio.gz").read_bytes()
+ramdisk = (base / "selyra-initramfs.cpio.gz").read_bytes()
 
 def check(condition, message):
     if not condition:
@@ -104,7 +104,7 @@ required = {
     "bin/powerctl",
     "bin/logd",
     "bin/logctl",
-    "etc/mobile-os/services.conf",
+    "etc/selyra/services.conf",
 }
 
 check(

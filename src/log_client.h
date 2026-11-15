@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include "selyra_env.h"
 
 
 static int mo_log_connect_timeout(
@@ -101,10 +102,10 @@ static int mo_log_event(const char *message)
             return -1;
     }
 
-    const char *path = getenv("MOBILE_OS_LOG_SOCKET");
+    const char *path = selyra_env_value("SELYRA_LOG_SOCKET", "MOBILE_OS_LOG_SOCKET");
 
     if (!path || !*path)
-        path = "/run/mobile-os-logs/log.sock";
+        path = "/run/selyra-logs/log.sock";
 
     struct sockaddr_un addr = {0};
     addr.sun_family = AF_UNIX;

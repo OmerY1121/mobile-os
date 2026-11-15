@@ -19,7 +19,7 @@ static int request(const char *command,
     };
 
     strcpy(addr.sun_path,
-           "/run/mobile-os-logs/log.sock");
+           "/run/selyra-logs/log.sock");
 
     if (connect(fd, (struct sockaddr *)&addr,
                 sizeof(addr)) < 0) {

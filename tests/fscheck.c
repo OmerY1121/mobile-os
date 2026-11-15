@@ -15,7 +15,7 @@ int main(void)
     }
 
     FILE *file = fopen(
-        "/var/lib/mobile-os/statusd/test.txt", "w");
+        "/var/lib/selyra/statusd/test.txt", "w");
 
     if (!file) {
         perror("FAIL: own directory");
@@ -29,7 +29,7 @@ int main(void)
 
     errno = 0;
     file = fopen(
-        "/var/lib/mobile-os/system/test.txt", "w");
+        "/var/lib/selyra/system/test.txt", "w");
 
     if (file) {
         fclose(file);

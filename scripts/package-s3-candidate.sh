@@ -22,10 +22,10 @@ echo "Preparing test package..."
 rm -rf "$PACKAGE"
 mkdir -p "$PACKAGE"
 
-cp "$BASE/UNTESTED-mobile-os-i9300.img" \
-   "$PACKAGE/UNTESTED-mobile-os-i9300.img"
+cp "$BASE/UNTESTED-selyra-i9300.img" \
+   "$PACKAGE/UNTESTED-selyra-i9300.img"
 
-cp "$BASE/mobile-os-initramfs.cpio.gz" \
+cp "$BASE/selyra-initramfs.cpio.gz" \
    "$PACKAGE/initramfs.cpio.gz"
 
 cp "$BASE/kernel/exynos4412-i9300.dtb" \
@@ -76,7 +76,7 @@ NOTES
 (
     cd "$PACKAGE"
     sha256sum \
-        UNTESTED-mobile-os-i9300.img \
+        UNTESTED-selyra-i9300.img \
         initramfs.cpio.gz \
         exynos4412-i9300.dtb \
         kernel-config \

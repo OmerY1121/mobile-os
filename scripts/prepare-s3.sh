@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 ROOTFS="build/s3/rootfs"
-OUTPUT="build/s3/mobile-os-initramfs.cpio.gz"
+OUTPUT="build/s3/selyra-initramfs.cpio.gz"
 REFS="build/s3/references"
 
 echo "Building current ARMv7 programs..."
@@ -55,9 +55,9 @@ mkdir -p \
     "$ROOTFS/proc" \
     "$ROOTFS/sys" \
     "$ROOTFS/tmp" \
-    "$ROOTFS/run/mobile-os" \
-    "$ROOTFS/var/lib/mobile-os/system" \
-    "$ROOTFS/var/lib/mobile-os/statusd"
+    "$ROOTFS/run/selyra" \
+    "$ROOTFS/var/lib/selyra/system" \
+    "$ROOTFS/var/lib/selyra/statusd"
 
 chmod 1777 "$ROOTFS/tmp"
 
@@ -80,13 +80,13 @@ install -m 0755 build/armv7/powerctl \
     "$ROOTFS/bin/powerctl"
 
 install -D -m 0600 config/services.conf \
-    "$ROOTFS/etc/mobile-os/services.conf"
+    "$ROOTFS/etc/selyra/services.conf"
 
 fakeroot bash -c '
 set -euo pipefail
 cd "$1"
-chown 0:0 etc/mobile-os/services.conf
-chmod 0600 etc/mobile-os/services.conf
+chown 0:0 etc/selyra/services.conf
+chmod 0600 etc/selyra/services.conf
 
 mknod -m 600 dev/console c 5 1
 mknod -m 666 dev/null c 1 3
