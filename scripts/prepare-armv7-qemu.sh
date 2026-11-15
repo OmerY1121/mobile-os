@@ -9,7 +9,7 @@ initramfs="build/armv7/initramfs.cpio.gz"
 
 base="https://deb.debian.org/debian/dists/trixie/main/installer-armhf/current/images"
 
-for program in init statusd statusctl logd logctl; do
+for program in init statusd statusctl logd logctl powerctl; do
     test -f "build/armv7/$program" || {
         echo "Missing ARM binary: $program"
         exit 1
@@ -65,6 +65,7 @@ cp build/armv7/statusd "$rootfs/bin/statusd"
 cp build/armv7/statusctl "$rootfs/bin/statusctl"
 cp build/armv7/logd "$rootfs/bin/logd"
 cp build/armv7/logctl "$rootfs/bin/logctl"
+cp build/armv7/powerctl "$rootfs/bin/powerctl"
 
 install -D -m 0600 config/services.conf \
     "$rootfs/etc/mobile-os/services.conf"

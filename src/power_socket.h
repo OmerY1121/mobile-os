@@ -7,7 +7,7 @@ int selyra_power_socket_open(const char *path);
 
 /* 1: valid request, 0: none/rejected, -1: error */
 int selyra_power_socket_poll(
-    int server,
+    int server, int accept_new,
     enum selyra_power_action *action);
 
 #endif

@@ -101,6 +101,7 @@ required = {
     "init",
     "bin/statusd",
     "bin/statusctl",
+    "bin/powerctl",
     "bin/logd",
     "bin/logctl",
     "etc/mobile-os/services.conf",

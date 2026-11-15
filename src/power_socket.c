@@ -73,7 +73,7 @@ fail:
 }
 
 int selyra_power_socket_poll(
-    int server,
+    int server, int accept_new,
     enum selyra_power_action *action)
 {
     if (!action) {
@@ -120,9 +120,13 @@ int selyra_power_socket_poll(
         if (parsed == -2) {
             reply = "power: permission denied\n";
         } else if (parsed == 0) {
-            reply =
-                "power: validated; shutdown not enabled yet\n";
-            result = 1;
+            if (accept_new) {
+                reply = "power: accepted; shutdown in progress\n";
+                result = 1;
+            } else {
+                *action = SELYRA_POWER_NONE;
+                reply = "power: shutdown already in progress\n";
+            }
         }
     }
 

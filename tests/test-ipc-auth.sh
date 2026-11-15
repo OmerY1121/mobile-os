@@ -3,6 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Use the isolated QEMU test when sudo cannot switch users.
+if ! sudo -n -u nobody env true >/dev/null 2>&1; then
+    echo "INFO: sudo unavailable; testing real UIDs in QEMU"
+    exec bash tests/test-qemu-ipc-auth.sh
+fi
+
 TEST_DIR=$(mktemp -d /tmp/mobile-os-auth.XXXXXX)
 SERVER_PID=""
 

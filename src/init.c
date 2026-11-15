@@ -3,6 +3,8 @@
 #include "service_config.h"
 #include "service_state.h"
 #include "power_socket.h"
+#include "shutdown_state.h"
+#include "power_transition.h"
 #include <sched.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -348,6 +350,7 @@ struct managed_service {
     const char *start_label;
     void (*launch)(void);
     pid_t pid;
+    pid_t pgid;
     time_t started;
     time_t retry_at;
     int failures;
@@ -389,10 +392,19 @@ static void start_service(struct managed_service *svc)
     }
 
     if (child == 0) {
+        if (setpgid(0, 0) < 0) {
+            perror("init: setpgid child");
+            _exit(126);
+        }
         svc->launch();
         _exit(127);
     }
 
+    if (setpgid(child, child) < 0 &&
+        errno != EACCES && errno != ESRCH)
+        perror("init: setpgid parent");
+
+    svc->pgid = child;
     svc->pid = child;
     svc->started = time(NULL);
 
@@ -456,6 +468,47 @@ static void service_exited(struct managed_service *svc,
     svc->retry_at = time(NULL) + svc->failures;
 }
 
+
+static int service_group_alive(
+    const struct managed_service *svc)
+{
+    if (svc->pgid <= 1)
+        return 0;
+
+    if (kill(-svc->pgid, 0) == 0)
+        return 1;
+
+    return errno == EPERM;
+}
+
+static void shutdown_signal_groups(
+    const struct managed_service *services,
+    size_t count, int signo)
+{
+    /* Stop statusd first, then logd. */
+    for (size_t i = count; i > 0; --i) {
+        const struct managed_service *svc = &services[i - 1];
+
+        if (!service_group_alive(svc))
+            continue;
+
+        if (kill(-svc->pgid, signo) < 0 &&
+            errno != ESRCH)
+            perror("init: signal service group");
+    }
+}
+
+static int shutdown_groups_stopped(
+    const struct managed_service *services,
+    size_t count)
+{
+    for (size_t i = 0; i < count; ++i) {
+        if (service_group_alive(&services[i]))
+            return 0;
+    }
+
+    return 1;
+}
 
 static void publish_service_states(
     const struct managed_service *services,
@@ -540,6 +593,8 @@ static void manage_services(
     const size_t count =
         sizeof(services) / sizeof(services[0]);
 
+    struct selyra_shutdown_state shutdown = {0};
+
     if (services[0].enabled) {
         start_service(&services[0]);
 
@@ -592,7 +647,8 @@ static void manage_services(
         for (size_t i = 0; i < count; ++i) {
             struct managed_service *svc = &services[i];
 
-            if (svc->enabled &&
+            if (selyra_shutdown_restart_allowed(&shutdown) &&
+                svc->enabled &&
                 !svc->stopped &&
                 svc->pid == 0 &&
                 now >= svc->retry_at)
@@ -602,15 +658,67 @@ static void manage_services(
         enum selyra_power_action action;
 
         int power_result =
-            selyra_power_socket_poll(power_fd, &action);
+            selyra_power_socket_poll(
+                power_fd,
+                selyra_shutdown_restart_allowed(&shutdown),
+                &action);
 
         if (power_result < 0) {
             perror("init: power control poll");
         } else if (power_result == 1) {
-            printf(
-                "init: %s request authenticated (activation pending)\n",
-                action == SELYRA_POWER_OFF
-                    ? "poweroff" : "reboot");
+            if (selyra_shutdown_begin(&shutdown, action,
+                                      time(NULL)) == 0) {
+                printf("init: %s shutdown requested\n",
+                       action == SELYRA_POWER_OFF
+                           ? "poweroff" : "reboot");
+
+                shutdown_signal_groups(
+                    services, count, SIGTERM);
+
+                puts("init: shutdown SIGTERM sent");
+            } else {
+                puts("init: duplicate power request ignored");
+            }
+        }
+
+        if (shutdown.phase == SELYRA_SHUTDOWN_GRACEFUL) {
+            if (shutdown_groups_stopped(services, count)) {
+                if (selyra_shutdown_finish(&shutdown) == 0)
+                    puts("init: services stopped; power transition pending");
+            } else if (selyra_shutdown_check_timeout(
+                           &shutdown, time(NULL), 5) == 1) {
+                shutdown_signal_groups(
+                    services, count, SIGKILL);
+
+                puts("init: shutdown SIGKILL escalation");
+            }
+        } else if (shutdown.phase == SELYRA_SHUTDOWN_FORCE &&
+                   shutdown_groups_stopped(services, count)) {
+            if (selyra_shutdown_finish(&shutdown) == 0)
+                puts("init: services stopped; power transition pending");
+        }
+
+        if (shutdown.phase == SELYRA_SHUTDOWN_READY) {
+#ifdef SELYRA_POWER_DRY_RUN
+            static int reported = 0;
+
+            if (!reported) {
+                puts("init: dry-run power transition suppressed");
+                reported = 1;
+            }
+#else
+            puts("init: requesting kernel power transition");
+
+            if (selyra_power_transition(shutdown.action) < 0) {
+                perror("init: kernel power transition failed");
+            } else {
+                fputs("init: kernel transition returned unexpectedly\n",
+                      stderr);
+            }
+
+            for (;;)
+                pause();
+#endif
         }
 
         publish_service_states(services, count);

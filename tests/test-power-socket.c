@@ -12,6 +12,7 @@ static int exchange(
     int server,
     const char *path,
     const char *request,
+    int accept_new,
     int expected_result,
     const char *expected_reply)
 {
@@ -32,7 +33,7 @@ static int exchange(
     }
 
     enum selyra_power_action action = SELYRA_POWER_NONE;
-    int result = selyra_power_socket_poll(server, &action);
+    int result = selyra_power_socket_poll(server, accept_new, &action);
 
     char received[128];
     ssize_t n = recv(client, received,
@@ -81,19 +82,25 @@ int main(void)
     int is_root = geteuid() == 0;
 
     const char *valid_reply = is_root
-        ? "power: validated; shutdown not enabled yet\n"
+        ? "power: accepted; shutdown in progress\n"
         : "power: permission denied\n";
 
     const char *invalid_reply = is_root
         ? "power: invalid command\n"
         : "power: permission denied\n";
 
+    const char *busy_reply = is_root
+        ? "power: shutdown already in progress\n"
+        : "power: permission denied\n";
+
     if (exchange(server, path, "REBOOT\n",
-                 is_root, valid_reply) != 0 ||
+                 1, is_root, valid_reply) != 0 ||
         exchange(server, path, "POWEROFF\n",
-                 is_root, valid_reply) != 0 ||
+                 1, is_root, valid_reply) != 0 ||
         exchange(server, path, "INVALID\n",
-                 0, invalid_reply) != 0) {
+                 1, 0, invalid_reply) != 0 ||
+        exchange(server, path, "REBOOT\n",
+                 0, 0, busy_reply) != 0) {
         fputs("FAIL: power socket transport/auth\n", stderr);
         return 1;
     }

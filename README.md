@@ -23,6 +23,17 @@ Version 0.0.9 is currently in development.
 There is no graphical interface or mobile
 hardware support yet.
 
+## Principles
+
+Selyra is an independent Linux-based operating
+system, not an Android fork.
+
+Its design goals include privacy, minimal software,
+user-controlled updates and downgrades, and freedom
+from mandatory Google services.
+
+See [Design Principles](docs/PRINCIPLES.md).
+
 ## Building
 
 Requirements: GCC, Make, cpio, gzip, fakeroot,
@@ -48,7 +59,19 @@ build/vmlinuz before running QEMU.
 Release notes are available in docs/releases/.
 
 
-## Latest published release (v0.0.8)
+## Latest release (v0.0.9)
+
+Selyra OS v0.0.9 is an experimental release.
+
+This version adds RAM and CPU monitoring,
+system information, and controlled power management.
+
+Poweroff and reboot have been tested in QEMU.
+Physical mobile hardware operation remains untested.
+
+See [v0.0.9 release notes](docs/releases/v0.0.9.md).
+
+## Previous release (v0.0.8)
 
 v0.0.8 adds local logging, configurable service management,
 service status reporting and health checks. The system boots
