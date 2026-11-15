@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.9
+
+- Renamed the project to Selyra OS.
+- Added centralized version management.
+- Added RAM, CPU and system information commands.
+- Added authenticated power management IPC.
+- Added controlled shutdown and kernel power transitions.
+- Extended QEMU, ARMv7 and security tests.
+- Documented Selyra design principles.
+
+
 ## 0.0.8
 
 - Added local logging, boot diagnostics and service configuration.

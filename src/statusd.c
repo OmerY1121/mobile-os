@@ -13,6 +13,9 @@
 #include <unistd.h>
 
 #include "ipc_io.h"
+#include "memory_info.h"
+#include "cpu_info.h"
+#include "system_info.h"
 
 static const char *socket_path(void)
 {
@@ -162,6 +165,9 @@ int main(void)
 
         char uptime_reply[64];
         char services_reply[256];
+        char memory_reply[128];
+        char cpu_reply[128];
+        char system_reply[256];
         const char *reply;
 
         if (n < 0) {
@@ -183,6 +189,18 @@ int main(void)
                          "statusd: uptime %lds\n", seconds);
                 reply = uptime_reply;
             }
+        } else if (strcmp(request, "CPU\n") == 0) {
+            reply = selyra_cpu_report(cpu_reply,
+                        sizeof(cpu_reply)) == 0
+                ? cpu_reply : "statusd: cpu unavailable\n";
+        } else if (strcmp(request, "MEMORY\n") == 0) {
+            reply = selyra_memory_report(memory_reply,
+                         sizeof(memory_reply)) == 0
+                ? memory_reply : "statusd: memory unavailable\n";
+        } else if (strcmp(request, "SYSTEM\n") == 0) {
+            reply = selyra_system_report(system_reply,
+                        sizeof(system_reply)) == 0
+                ? system_reply : "statusd: system unavailable\n";
         } else if (strcmp(request, "SERVICES\n") == 0) {
             const char *path =
                 getenv("MOBILE_OS_STATE_FILE");

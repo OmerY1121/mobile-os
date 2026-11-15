@@ -10,7 +10,7 @@ REFS="build/s3/references"
 echo "Building current ARMv7 programs..."
 bash scripts/build-s3.sh
 
-for program in init statusd statusctl logd logctl; do
+for program in init statusd statusctl logd logctl powerctl; do
     file "build/armv7/$program" | grep -q ARM || {
         echo "Not an ARM binary: $program"
         exit 1
@@ -45,7 +45,7 @@ grep -Fxq \
 
 echo "PASS: Galaxy S3 device metadata verified"
 
-echo "Preparing Mobile OS initramfs..."
+echo "Preparing Selyra OS initramfs..."
 
 rm -rf "$ROOTFS"
 
@@ -75,6 +75,9 @@ install -m 0755 build/armv7/logd \
 
 install -m 0755 build/armv7/logctl \
     "$ROOTFS/bin/logctl"
+
+install -m 0755 build/armv7/powerctl \
+    "$ROOTFS/bin/powerctl"
 
 install -D -m 0600 config/services.conf \
     "$ROOTFS/etc/mobile-os/services.conf"

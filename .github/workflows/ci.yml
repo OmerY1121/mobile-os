@@ -1,8 +1,8 @@
-name: Mobile OS CI
+name: Selyra OS CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, selyra-0.0.9]
   pull_request:
   workflow_dispatch:
 
@@ -25,3 +25,18 @@ jobs:
 
       - name: Test peer authentication
         run: bash tests/test-ipc-auth.sh
+
+      - name: Build Selyra system components
+        run: make build/init build/powerctl
+
+      - name: Run Selyra system tests
+        run: |
+          make test-logs
+          make test-memory
+          make test-cpu
+          make test-system
+          make test-power
+          make test-power-socket
+          make test-powerctl
+          make test-shutdown-state
+          make test-power-transition

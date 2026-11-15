@@ -10,9 +10,11 @@ import sys
 import time
 from pathlib import Path
 
+version = Path("VERSION").read_text().strip()
+
 checks = {
     "ARM system boot":
-        r"Mobile OS 0\.0\.8(?!-dev)",
+        rf"Selyra OS {re.escape(version)}(?!-dev)",
     "Private filesystem":
         r"statusd private tmpfs ready",
     "Restricted proc":
@@ -23,6 +25,8 @@ checks = {
         r"statusd UID=1100 GID=1100 namespace PID=2 PPID=1",
     "Privilege protection":
         r"statusd: no_new_privs=1",
+    "Power control socket":
+        r"init: power control socket ready",
     "Service state":
         r"init: service state published",
     "Service configuration":
@@ -61,7 +65,7 @@ command = [
     "-no-reboot",
 ]
 
-print("Starting ARMv7 Mobile OS...", flush=True)
+print("Starting ARMv7 Selyra OS...", flush=True)
 
 proc = subprocess.Popen(
     command,
