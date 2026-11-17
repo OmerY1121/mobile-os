@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0
+
+Persistent storage support.
+
+- Added ext4 storage through VirtIO.
+- Added read-only and read-write storage modes.
+- Added storage validation and access restrictions.
+- Added statusctl storage.
+- Added filesystem synchronization and unmounting.
+- Added persistence and storage security tests.
+- Extended CI with x86-64 QEMU tests.
+- Fixed intermittent boot version matching in storage tests.
+
+
 ## 0.1.0
 
 Maintenance and naming cleanup.

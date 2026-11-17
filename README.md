@@ -9,12 +9,12 @@ and long-term device support.
 
 Starting with v0.0.9, Mobile OS is named Selyra OS.
 Earlier releases retain their original name.
-Selyra OS 0.1.0 is the latest published release.
+Selyra OS 0.2.0 is the latest published release.
 
-Version 0.1.0 focuses on fixes, internal naming and test improvements.
-It also introduces standard SemVer numbering for future releases.
+Version 0.2.0 adds persistent storage, storage
+diagnostics and filesystem handling during shutdown.
 
-See [0.1.0 release notes](docs/releases/v0.1.0.md).
+See [0.2.0 release notes](docs/releases/v0.2.0.md).
 
 ## Current state
 
@@ -23,6 +23,10 @@ See [0.1.0 release notes](docs/releases/v0.1.0.md).
 - Local IPC using Unix domain sockets
 - Basic service recovery
 - Automated IPC tests
+- RAM, CPU and system information
+- Controlled shutdown and reboot
+- Persistent ext4 storage in x86-64 QEMU
+- Storage diagnostics
 - QEMU boot support
 
 There is no graphical interface or mobile
@@ -64,7 +68,12 @@ build/vmlinuz before running QEMU.
 Release notes are available in docs/releases/.
 
 
-## Latest release (v0.1.0)
+## Latest release (v0.2.0)
+
+This version adds persistent storage and storage diagnostics.
+See [release notes](docs/releases/v0.2.0.md).
+
+## Previous release (v0.1.0)
 
 This update focuses on fixes, naming and test improvements. See [release notes](docs/releases/v0.1.0.md).
 
