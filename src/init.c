@@ -5,6 +5,7 @@
 #include "power_socket.h"
 #include "shutdown_state.h"
 #include "power_transition.h"
+#include "storage_boot.h"
 #include <sched.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -707,6 +708,15 @@ static void manage_services(
                 reported = 1;
             }
 #else
+            if (storage_shutdown() < 0) {
+                perror("init: storage shutdown failed");
+                fputs("init: power transition blocked\n",
+                      stderr);
+
+                for (;;)
+                    pause();
+            }
+
             puts("init: requesting kernel power transition");
 
             if (selyra_power_transition(shutdown.action) < 0) {
@@ -739,6 +749,8 @@ int main(void)
 
     if (mount("proc", "/proc", "proc", 0, NULL) != 0)
         perror("init: mount /proc");
+
+    prepare_boot_storage();
 
     int power_fd = -1;
 

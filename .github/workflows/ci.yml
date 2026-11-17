@@ -90,3 +90,52 @@ jobs:
 
       - name: Boot Selyra in ARM QEMU
         run: make test-arm-boot
+
+  x86-64-qemu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    env:
+      LC_ALL: C
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install x86-64 build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc libc6-dev python3 \
+            qemu-system-x86 qemu-utils \
+            fakeroot cpio gzip file e2fsprogs \
+            linux-image-generic
+
+      - name: Prepare Linux kernel
+        run: |
+          mkdir -p build
+          kernel=$(find /boot -maxdepth 1 -type f \
+            -name 'vmlinuz-*-generic' | sort -V | tail -n 1)
+          test -n "$kernel"
+          sudo install -m 0644 "$kernel" build/vmlinuz
+          file build/vmlinuz
+          sha256sum build/vmlinuz
+
+      - name: Run system regression tests
+        run: make check
+
+      - name: Verify QEMU IPC authorization
+        run: bash tests/test-qemu-ipc-auth.sh
+
+      - name: Verify logging authorization
+        run: make test-log-auth
+
+      - name: Verify power management
+        run: |
+          make test-qemu-power
+          make test-qemu-poweroff
+          make test-qemu-reboot
+          make test-qemu-force-poweroff
+
+      - name: Verify persistent storage
+        run: make test-storage

@@ -16,6 +16,7 @@
 #include "memory_info.h"
 #include "cpu_info.h"
 #include "system_info.h"
+#include "storage_info.h"
 #include "selyra_env.h"
 
 static const char *socket_path(void)
@@ -169,6 +170,7 @@ int main(void)
         char memory_reply[128];
         char cpu_reply[128];
         char system_reply[256];
+        char storage_reply[256];
         const char *reply;
 
         if (n < 0) {
@@ -202,6 +204,10 @@ int main(void)
             reply = selyra_system_report(system_reply,
                         sizeof(system_reply)) == 0
                 ? system_reply : "statusd: system unavailable\n";
+        } else if (strcmp(request, "STORAGE\n") == 0) {
+            reply = selyra_storage_report(storage_reply,
+                         sizeof(storage_reply)) == 0
+                ? storage_reply : "statusd: storage unavailable\n";
         } else if (strcmp(request, "SERVICES\n") == 0) {
             const char *path =
                 selyra_env_value("SELYRA_STATE_FILE", "MOBILE_OS_STATE_FILE");

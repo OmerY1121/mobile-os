@@ -13,13 +13,13 @@ all: $(INITRAMFS)
 $(BUILD):
 	mkdir -p $@
 
-$(BUILD)/init: src/init.c src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c | $(BUILD) src/service_config.c src/service_config.h
+$(BUILD)/init: src/init.c src/storage_boot.h src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c | $(BUILD) src/service_config.c src/service_config.h
 	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c
 
-$(BUILD)/init-dry-run: src/init.c src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c | $(BUILD) src/service_config.c src/service_config.h
+$(BUILD)/init-dry-run: src/init.c src/storage_boot.h src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c | $(BUILD) src/service_config.c src/service_config.h
 	$(CC) $(CFLAGS) -DSELYRA_POWER_DRY_RUN -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c
 
-$(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h src/memory_info.h src/cpu_info.h src/cpu_info.c src/system_info.h VERSION | $(BUILD)
+$(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h src/memory_info.h src/cpu_info.h src/cpu_info.c src/system_info.h src/storage_info.h VERSION | $(BUILD)
 	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/cpu_info.c
 
 $(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
@@ -184,3 +184,17 @@ test-qemu-force-poweroff: all
 test-version:
 	python3 scripts/check-version.py
 	python3 tests/test-semver.py
+
+
+.PHONY: test-storage
+test-storage: all
+	test ! -L build/selyra-data-test.img
+	test -e build/selyra-data-test.img || bash scripts/create-test-storage.sh
+	python3 tests/test-storage-image.py
+	$(CC) $(CFLAGS) tests/storage-mount-probe.c -o build/storage-mount-probe
+	$(CC) $(CFLAGS) -DSELYRA_STORAGE_WRITE tests/storage-persistence-probe.c -o build/storage-write-probe
+	$(CC) $(CFLAGS) tests/storage-persistence-probe.c -o build/storage-read-probe
+	$(CC) $(CFLAGS) -DSELYRA_STORAGE_READ_ONLY tests/storage-persistence-probe.c -o build/storage-read-ro-probe
+	bash tests/test-storage-mount.sh
+	python3 tests/test-storage-boot.py
+	python3 tests/test-storage-persistence.py

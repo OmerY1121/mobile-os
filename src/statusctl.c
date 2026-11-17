@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     const char *request = "STATUS\n";
 
     if (argc > 2) {
-        fputs("usage: statusctl [status|ping|uptime|memory|cpu|system|stop|services|health]\n",
+        fputs("usage: statusctl [status|ping|uptime|memory|cpu|system|storage|stop|services|health]\n",
               stderr);
         return 1;
     }
@@ -31,6 +31,8 @@ int main(int argc, char **argv)
             request = "CPU\n";
         else if (strcmp(argv[1], "system") == 0)
             request = "SYSTEM\n";
+        else if (strcmp(argv[1], "storage") == 0)
+            request = "STORAGE\n";
         else if (strcmp(argv[1], "services") == 0)
             request = "SERVICES\n";
         else if (strcmp(argv[1], "health") == 0)
