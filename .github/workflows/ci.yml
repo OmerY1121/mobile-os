@@ -2,7 +2,7 @@ name: Selyra OS CI
 
 on:
   push:
-    branches: [main, selyra-0.1.0]
+    branches: [main, selyra-0.2.0]
   pull_request:
   workflow_dispatch:
 
