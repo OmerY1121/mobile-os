@@ -68,12 +68,16 @@ def test_boot(name, work, enabled, expected, image=None,
         ]
 
     required = [
-        f"Selyra OS {version}\n",
         expected,
         "init: service manager ready",
         "logd: local logging ready",
         "statusd: local IPC ready",
     ]
+
+    version_pattern = re.compile(
+        rf"(?m)^Selyra OS {re.escape(version)}"
+        r"(?=[ \t]*(?:$|\[\s*\d+\.\d+\]))"
+    )
 
     if extra:
         required.append(extra)
@@ -97,7 +101,8 @@ def test_boot(name, work, enabled, expected, image=None,
             while time.monotonic() < deadline:
                 output = logfile.read_text(errors="replace")
 
-                if all(marker in output for marker in required):
+                if (version_pattern.search(output) and
+                    all(marker in output for marker in required)):
                     seen = [
                         marker for marker in outcomes
                         if marker in output
