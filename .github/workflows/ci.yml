@@ -116,16 +116,21 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             gcc libc6-dev python3 \
             qemu-system-x86 qemu-utils \
-            fakeroot cpio gzip file e2fsprogs \
-            linux-image-generic
+            fakeroot cpio gzip file e2fsprogs
 
       - name: Prepare Linux kernel
         run: |
           mkdir -p build
-          kernel=$(find /boot -maxdepth 1 -type f \
-            -name 'vmlinuz-*-generic' | sort -V | tail -n 1)
-          test -n "$kernel"
-          sudo install -m 0644 "$kernel" build/vmlinuz
+          kernel_pkg=$(apt-cache depends linux-image-generic | awk '$1 == "Depends:" && $2 ~ /^linux-image-[0-9].*-generic$/ {print $2; exit}')
+          test -n "$kernel_pkg"
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          (
+            cd "$work"
+            apt-get download "$kernel_pkg"
+            dpkg-deb -x ./*.deb extracted
+          )
+          install -m 0644 "$work/extracted/boot/vmlinuz-${kernel_pkg#linux-image-}" build/vmlinuz
           file build/vmlinuz
           sha256sum build/vmlinuz
 
