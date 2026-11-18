@@ -9,12 +9,12 @@ and long-term device support.
 
 Starting with v0.0.9, Mobile OS is named Selyra OS.
 Earlier releases retain their original name.
-Selyra OS 0.2.0 is the latest published release.
+Selyra OS 0.3.0 is the latest published release.
 
-Version 0.2.0 adds persistent storage, storage
-diagnostics and filesystem handling during shutdown.
+Version 0.3.0 adds system configuration,
+persistent settings and runtime service management.
 
-See [0.2.0 release notes](docs/releases/v0.2.0.md).
+See [0.3.0 release notes](docs/releases/v0.3.0.md).
 
 ## Current state
 
@@ -27,6 +27,10 @@ See [0.2.0 release notes](docs/releases/v0.2.0.md).
 - Controlled shutdown and reboot
 - Persistent ext4 storage in x86-64 QEMU
 - Storage diagnostics
+- Persistent system configuration
+- Configuration recovery
+- Runtime service management
+- Persistent service startup policies
 - QEMU boot support
 
 There is no graphical interface or mobile
@@ -68,7 +72,12 @@ build/vmlinuz before running QEMU.
 Release notes are available in docs/releases/.
 
 
-## Latest release (v0.2.0)
+## Latest release (v0.3.0)
+
+This version adds system configuration and service management.
+See [release notes](docs/releases/v0.3.0.md).
+
+## Previous release (v0.2.0)
 
 This version adds persistent storage and storage diagnostics.
 See [release notes](docs/releases/v0.2.0.md).

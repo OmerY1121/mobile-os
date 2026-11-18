@@ -13,7 +13,29 @@
 #include "selyra_env.h"
 
 #define MAX_REQUEST 512
-#define MAX_LOG_BYTES (64 * 1024)
+static off_t max_log_bytes = 64 * 1024;
+
+static int configure_log_limit(void)
+{
+    const char *value = getenv("SELYRA_LOG_MAX_KIB");
+
+    if (!value)
+        return 0;
+
+    if (*value < '1' || *value > '9' ||
+        strspn(value, "0123456789") != strlen(value))
+        return -1;
+
+    errno = 0;
+    unsigned long kib = strtoul(value, NULL, 10);
+
+    if (errno || kib < 16 || kib > 4096)
+        return -1;
+
+    max_log_bytes = (off_t)kib * 1024;
+
+    return 0;
+}
 
 static volatile sig_atomic_t stopping;
 
@@ -132,7 +154,7 @@ static int append_log(const char *path, const char *msg)
         return -1;
     }
 
-    if (st.st_size + length > MAX_LOG_BYTES) {
+    if (st.st_size > max_log_bytes - length) {
         close(fd);
 
         char old[sizeof(((struct sockaddr_un *)0)
@@ -261,6 +283,11 @@ static int bind_log_socket(
 
 int main(void)
 {
+    if (configure_log_limit() < 0) {
+        fputs("logd: invalid log size limit\n", stderr);
+        return 1;
+    }
+
     const char *socket_path =
         selyra_env_value("SELYRA_LOG_SOCKET", "MOBILE_OS_LOG_SOCKET");
     const char *log_path =

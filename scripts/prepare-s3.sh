@@ -10,7 +10,7 @@ REFS="build/s3/references"
 echo "Building current ARMv7 programs..."
 bash scripts/build-s3.sh
 
-for program in init statusd statusctl logd logctl powerctl; do
+for program in init statusd statusctl logd logctl powerctl configd configctl servicectl; do
     file "build/armv7/$program" | grep -q ARM || {
         echo "Not an ARM binary: $program"
         exit 1
@@ -78,6 +78,10 @@ install -m 0755 build/armv7/logctl \
 
 install -m 0755 build/armv7/powerctl \
     "$ROOTFS/bin/powerctl"
+
+for program in configd configctl servicectl; do
+    install -m 0755 "build/armv7/$program" "$ROOTFS/bin/$program"
+done
 
 install -D -m 0600 config/services.conf \
     "$ROOTFS/etc/selyra/services.conf"

@@ -13,6 +13,8 @@ from pathlib import Path
 version = Path("VERSION").read_text().strip()
 
 checks = {
+    "Configuration service":
+        r"configd: local IPC ready",
     "ARM system boot":
         rf"Selyra OS {re.escape(version)}(?!-dev)",
     "Private filesystem":

@@ -2,7 +2,7 @@ name: Selyra OS CI
 
 on:
   push:
-    branches: [main, selyra-0.2.0]
+    branches: [main, selyra-0.3.0]
   pull_request:
   workflow_dispatch:
 
@@ -58,6 +58,14 @@ jobs:
           make test-powerctl
           make test-shutdown-state
           make test-power-transition
+
+      - name: Run configuration and service management tests
+        run: make test-management
+
+      - name: Verify management IPC authorization
+        run: |
+          sudo -n ./build/test-service-control
+          sudo -n /usr/bin/python3 tests/test-config-peer.py
 
   armv7-qemu:
     runs-on: ubuntu-24.04
@@ -139,3 +147,12 @@ jobs:
 
       - name: Verify persistent storage
         run: make test-storage
+
+      - name: Verify dynamic service management
+        run: make test-service-management
+
+      - name: Verify persistent service policies
+        run: make test-service-policy-boot
+
+      - name: Verify persistent system configuration
+        run: make test-config-boot

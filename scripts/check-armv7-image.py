@@ -46,11 +46,10 @@ except (OSError, EOFError) as exc:
     sys.exit(f"FAIL: Cannot read ARM image: {exc}")
 
 programs = [
-    "init", "statusd", "statusctl", "logd", "logctl"
+    "init", "statusd", "statusctl",
+    "logd", "logctl", "powerctl",
+    "configd", "configctl", "servicectl"
 ]
-
-if (base / "rootfs/bin/powerctl").exists():
-    programs.append("powerctl")
 
 for program in programs:
     binary = base / program

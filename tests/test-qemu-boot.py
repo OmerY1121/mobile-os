@@ -24,6 +24,10 @@ checks = {
     "Privilege protection": r"statusd: no_new_privs=1",
     "Power control socket":
         r"init: power control socket ready",
+    "Configuration service":
+        r"configd: local IPC ready",
+    "Service control socket":
+        r"init: service control socket ready",
     "Service state":
         r"init: service state published",
     "Service configuration":

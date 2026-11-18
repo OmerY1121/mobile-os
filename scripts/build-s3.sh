@@ -5,13 +5,21 @@ cd "$(dirname "$0")/.."
 
 mkdir -p build/armv7
 
-for program in init statusd statusctl logd logctl powerctl; do
+for program in init statusd statusctl logd logctl powerctl configd configctl servicectl; do
     echo "Building $program for Galaxy S3..."
 
     sources=("src/$program.c")
 
     if [[ "$program" == "init" ]]; then
-        sources+=(src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c)
+        sources+=(src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c src/service_control.c src/config_engine.c src/config_store.c)
+    fi
+
+    if [[ "$program" == "configd" ]]; then
+        sources+=(src/config_engine.c src/config_store.c)
+    fi
+
+    if [[ "$program" == "configctl" ]]; then
+        sources+=(src/config_engine.c)
     fi
 
     if [[ "$program" == "statusd" ]]; then

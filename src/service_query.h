@@ -14,7 +14,7 @@ static int mo_query_services(
     if (!path || !output || capacity < 16)
         return -1;
 
-    int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
 
     if (fd < 0)
         return -1;

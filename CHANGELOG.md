@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+System configuration and service management.
+
+- Added configd and configctl.
+- Added persistent settings and recovery.
+- Added servicectl.
+- Added persistent service startup policies.
+- Added configurable hostname and log size limits.
+- Added configuration IPC authentication.
+- Fixed build dependencies.
+- Extended automated tests and CI coverage.
+
+
 ## 0.2.0
 
 Persistent storage support.

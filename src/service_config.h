@@ -13,4 +13,13 @@ int mo_service_config_load(
     struct mo_service_config *result
 );
 
+
+/* load: 0 valid, 1 missing, -1 error */
+/* save: 0 durable, -1 failed, -2 uncertain */
+int selyra_service_policy_load(int dirfd,
+                               struct mo_service_config *cfg);
+
+int selyra_service_policy_save(int dirfd,
+                               const struct mo_service_config *cfg);
+
 #endif

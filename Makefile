@@ -13,24 +13,25 @@ all: $(INITRAMFS)
 $(BUILD):
 	mkdir -p $@
 
-$(BUILD)/init: src/init.c src/storage_boot.h src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c | $(BUILD) src/service_config.c src/service_config.h
-	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c
+$(BUILD)/init: src/init.c src/storage_boot.h src/config_boot.h src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c src/service_config.c src/service_config.h src/selyra_env.h src/service_control.c src/service_control.h src/config_engine.c src/config_engine.h src/config_store.c src/config_store.h | $(BUILD)
+	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c src/service_control.c src/config_engine.c src/config_store.c
 
-$(BUILD)/init-dry-run: src/init.c src/storage_boot.h src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c | $(BUILD) src/service_config.c src/service_config.h
-	$(CC) $(CFLAGS) -DSELYRA_POWER_DRY_RUN -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c
+$(BUILD)/init-dry-run: src/init.c src/storage_boot.h src/config_boot.h src/log_client.h src/service_state.c src/service_state.h VERSION src/power_control.h src/power_control.c src/power_socket.h src/power_socket.c src/ipc_io.h src/shutdown_state.h src/shutdown_state.c src/power_transition.h src/power_transition.c src/service_config.c src/service_config.h src/selyra_env.h src/service_control.c src/service_control.h src/config_engine.c src/config_engine.h src/config_store.c src/config_store.h | $(BUILD)
+	$(CC) $(CFLAGS) -DSELYRA_POWER_DRY_RUN -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/service_config.c src/service_state.c src/power_control.c src/power_socket.c src/shutdown_state.c src/power_transition.c src/service_control.c src/config_engine.c src/config_store.c
 
-$(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h src/memory_info.h src/cpu_info.h src/cpu_info.c src/system_info.h src/storage_info.h VERSION | $(BUILD)
+$(BUILD)/statusd: src/statusd.c src/ipc_io.h src/log_client.h src/memory_info.h src/cpu_info.h src/cpu_info.c src/system_info.h src/storage_info.h src/service_query.h src/selyra_env.h VERSION | $(BUILD)
 	$(CC) $(CFLAGS) -DSELYRA_VERSION='"$(shell cat VERSION)"' -o $@ $< src/cpu_info.c
 
-$(BUILD)/statusctl: src/statusctl.c src/ipc_io.h | $(BUILD)
+$(BUILD)/statusctl: src/statusctl.c src/ipc_io.h src/selyra_env.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(INITRAMFS): $(BUILD)/init $(BUILD)/statusd $(BUILD)/statusctl $(BUILD)/powerctl Makefile $(BUILD)/logd $(BUILD)/logctl config/services.conf
+$(INITRAMFS): $(BUILD)/init $(BUILD)/configd $(BUILD)/configctl $(BUILD)/servicectl $(BUILD)/statusd $(BUILD)/statusctl $(BUILD)/powerctl Makefile $(BUILD)/logd $(BUILD)/logctl config/services.conf
 	rm -rf $(ROOTFS)
 	mkdir -p $(ROOTFS)/bin $(ROOTFS)/proc $(ROOTFS)/sys $(ROOTFS)/dev $(ROOTFS)/run/selyra $(ROOTFS)/var/lib/selyra $(ROOTFS)/tmp
 	cp $(BUILD)/init $(ROOTFS)/init
 	cp $(BUILD)/statusd $(BUILD)/statusctl $(BUILD)/powerctl $(ROOTFS)/bin/
-	cp $(BUILD)/logd $(BUILD)/logctl $(ROOTFS)/bin/
+	cp $(BUILD)/logd $(BUILD)/logctl $(BUILD)/servicectl $(ROOTFS)/bin/
+	cp $(BUILD)/configd $(BUILD)/configctl $(ROOTFS)/bin/
 	install -D -m 0600 config/services.conf $(ROOTFS)/etc/selyra/services.conf
 	fakeroot sh -ec 'cd "$(ROOTFS)"; chown -R 0:0 etc; chmod 0600 etc/selyra/services.conf; mknod -m 600 dev/console c 5 1; mknod -m 666 dev/null c 1 3; find . -print0 | cpio --null --quiet -o -H newc | gzip -9 > ../initramfs.cpio.gz'
 
@@ -86,11 +87,11 @@ package-s3:
 
 log-tools: build/logd build/logctl
 
-build/logd: src/logd.c
+build/logd: src/logd.c src/selyra_env.h
 	@mkdir -p build
 	$(CC) -static -O2 -Wall -Wextra -Werror -o $@ $<
 
-build/logctl: src/logctl.c
+build/logctl: src/logctl.c src/selyra_env.h
 	@mkdir -p build
 	$(CC) -static -O2 -Wall -Wextra -Werror -o $@ $<
 
@@ -198,3 +199,88 @@ test-storage: all
 	bash tests/test-storage-mount.sh
 	python3 tests/test-storage-boot.py
 	python3 tests/test-storage-persistence.py
+
+.PHONY: test-config-engine
+test-config-engine: $(BUILD)/test-config-engine
+	./$(BUILD)/test-config-engine
+
+$(BUILD)/test-config-engine: tests/test-config-engine.c src/config_engine.c src/config_engine.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ tests/test-config-engine.c src/config_engine.c
+
+.PHONY: test-config-store
+test-config-store: $(BUILD)/test-config-store
+	./$(BUILD)/test-config-store
+
+$(BUILD)/test-config-store: tests/test-config-store.c src/config_store.c src/config_store.h src/config_engine.c src/config_engine.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ tests/test-config-store.c src/config_store.c src/config_engine.c
+
+.PHONY: test-configd
+test-configd: $(BUILD)/configd
+	python3 tests/test-configd.py
+
+$(BUILD)/configd: src/configd.c src/config_engine.c src/config_engine.h src/config_store.c src/config_store.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ src/configd.c src/config_engine.c src/config_store.c
+
+.PHONY: test-configctl
+test-configctl: $(BUILD)/configctl $(BUILD)/configd
+	python3 tests/test-configctl.py
+
+$(BUILD)/configctl: src/configctl.c src/config_engine.c src/config_engine.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ src/configctl.c src/config_engine.c
+
+.PHONY: test-config-recovery
+test-config-recovery: $(BUILD)/configd $(BUILD)/configctl
+	python3 tests/test-config-recovery.py
+
+.PHONY: test-servicectl
+test-servicectl: $(BUILD)/servicectl
+	python3 tests/test-servicectl.py
+
+$(BUILD)/servicectl: src/servicectl.c src/service_query.h src/service_client.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $<
+
+.PHONY: test-service-control
+test-service-control: $(BUILD)/test-service-control
+	./$(BUILD)/test-service-control
+
+$(BUILD)/test-service-control: tests/test-service-control.c src/service_control.c src/service_control.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ tests/test-service-control.c src/service_control.c
+
+.PHONY: test-service-management
+test-service-management: all
+	python3 tests/test-service-management.py
+
+.PHONY: test-service-policy
+test-service-policy: $(BUILD)/test-service-policy
+	./$(BUILD)/test-service-policy
+
+$(BUILD)/test-service-policy: tests/test-service-policy.c src/service_config.c src/service_config.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ tests/test-service-policy.c src/service_config.c
+
+.PHONY: test-service-policy-boot
+test-service-policy-boot: all
+	test ! -L build/selyra-data-test.img
+	test -e build/selyra-data-test.img || bash scripts/create-test-storage.sh
+	python3 tests/test-service-policy-boot.py
+
+.PHONY: test-config-access
+test-config-access: $(BUILD)/configd $(BUILD)/configctl
+	python3 tests/test-config-access.py
+
+.PHONY: test-config-boot
+test-config-boot: all
+	test ! -L build/selyra-data-test.img
+	test -e build/selyra-data-test.img || bash scripts/create-test-storage.sh
+	python3 tests/test-config-boot.py
+
+.PHONY: test-management
+test-management:
+	$(MAKE) test-config-engine
+	$(MAKE) test-config-store
+	$(MAKE) test-configd
+	$(MAKE) test-configctl
+	$(MAKE) test-config-recovery
+	$(MAKE) test-config-access
+	$(MAKE) test-servicectl
+	$(MAKE) test-service-control
+	$(MAKE) test-service-policy

@@ -6,6 +6,10 @@
 #include "shutdown_state.h"
 #include "power_transition.h"
 #include "storage_boot.h"
+#include "service_control.h"
+#include "config_boot.h"
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <sched.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -360,10 +364,17 @@ struct managed_service {
     int stopped;
     int enabled;
     int restart_limit;
+    enum selyra_service_action pending;
+    time_t stop_deadline;
 };
+
+static int service_fd = -1;
 
 static void launch_logd(void)
 {
+    if (setenv("SELYRA_LOG_MAX_KIB", boot_log_limit, 1) < 0)
+        _exit(126);
+
     if (setgroups(0, NULL) < 0 ||
         setgid(LOGD_GID) < 0 ||
         setuid(LOGD_UID) < 0) {
@@ -393,6 +404,9 @@ static void start_service(struct managed_service *svc)
     }
 
     if (child == 0) {
+        if (service_fd >= 0)
+            close(service_fd);
+
         if (setpgid(0, 0) < 0) {
             perror("init: setpgid child");
             _exit(126);
@@ -449,6 +463,9 @@ static void service_exited(struct managed_service *svc,
                svc->name, WTERMSIG(status));
     }
 
+    if (svc->pending != SERVICE_NONE)
+        return;
+
     if (WIFEXITED(status) &&
         WEXITSTATUS(status) == 0) {
         printf("init: %s stopped normally\n", svc->name);
@@ -480,6 +497,267 @@ static int service_group_alive(
         return 1;
 
     return errno == EPERM;
+}
+
+
+
+static struct mo_service_config boot_policy;
+static int policy_available;
+
+static int open_policy_directory(int writable)
+{
+    if (storage_active == STORAGE_DISABLED ||
+        (writable && storage_active != STORAGE_READ_WRITE))
+        return -1;
+
+    int fd = open("/data", O_RDONLY | O_DIRECTORY |
+                  O_CLOEXEC | O_NOFOLLOW);
+
+    if (fd < 0)
+        return -1;
+
+    struct stat st;
+    struct statvfs info;
+
+    if (fstat(fd, &st) < 0 ||
+        st.st_uid != 0 || st.st_gid != 0 ||
+        (st.st_mode & 07777) != 0700 ||
+        fstatvfs(fd, &info) < 0 ||
+        (writable && (info.f_flag & ST_RDONLY))) {
+
+        close(fd);
+        return -1;
+    }
+
+    return fd;
+}
+
+static void load_boot_policy(struct mo_service_config *cfg)
+{
+    boot_policy = *cfg;
+    policy_available = 0;
+
+    int fd = open_policy_directory(0);
+
+    if (fd < 0)
+        return;
+
+    struct mo_service_config saved;
+
+    int result = selyra_service_policy_load(fd, &saved);
+    close(fd);
+
+    if (result == 1) {
+        policy_available = 1;
+        puts("init: default service policy active");
+        return;
+    }
+
+    if (result != 0 ||
+        (!saved.logd_enabled && !saved.statusd_enabled)) {
+
+        fputs("init: invalid persistent service policy; using defaults\n",
+              stderr);
+        return;
+    }
+
+    *cfg = saved;
+    boot_policy = saved;
+    policy_available = 1;
+
+    puts("init: persistent service policy loaded");
+}
+
+static const char *update_boot_policy(
+    enum selyra_service_target target,
+    enum selyra_service_action action)
+{
+    if (!policy_available)
+        return "ERR persistent policy unavailable\n";
+
+    struct mo_service_config next = boot_policy;
+
+    int enabled = action == SERVICE_ENABLE;
+
+    if (target == SERVICE_LOGD)
+        next.logd_enabled = enabled;
+    else
+        next.statusd_enabled = enabled;
+
+    if (!next.logd_enabled && !next.statusd_enabled)
+        return "ERR cannot disable all services\n";
+
+    int fd = open_policy_directory(1);
+
+    if (fd < 0)
+        return "ERR writable storage required\n";
+
+    int result = selyra_service_policy_save(fd, &next);
+    close(fd);
+
+    if (result == 0 || result == -2)
+        boot_policy = next;
+
+    if (result == -2)
+        return "ERR durability uncertain\n";
+
+    if (result != 0)
+        return "ERR policy save failed\n";
+
+    puts("init: persistent service policy updated");
+
+    return "OK accepted\n";
+}
+
+static int open_service_socket(void)
+{
+    struct sockaddr_un addr = {
+        .sun_family = AF_UNIX,
+        .sun_path = "/run/selyra-power/service.sock"
+    };
+
+    int fd = socket(AF_UNIX,
+        SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+
+    if (fd < 0)
+        return -1;
+
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        int saved = errno;
+        close(fd);
+        errno = saved;
+        return -1;
+    }
+
+    if (chmod(addr.sun_path, 0600) < 0 || listen(fd, 4) < 0) {
+        int saved = errno;
+        unlink(addr.sun_path);
+        close(fd);
+        errno = saved;
+        return -1;
+    }
+
+    return fd;
+}
+
+static const char *request_service(
+    struct managed_service *svc,
+    enum selyra_service_action action)
+{
+    if (!svc->enabled && action == SERVICE_STOP)
+        return "ERR disabled\n";
+
+    if (svc->pending != SERVICE_NONE)
+        return "ERR operation pending\n";
+
+    int active = svc->pid > 0 || service_group_alive(svc);
+
+    if (action == SERVICE_START && active)
+        return "ERR already active\n";
+
+    if ((action == SERVICE_STOP ||
+         action == SERVICE_RESTART) && active) {
+
+        struct timespec now;
+
+        if (clock_gettime(CLOCK_MONOTONIC, &now) < 0)
+            return "ERR clock failure\n";
+
+        if (svc->pgid <= 1)
+            return "ERR invalid process group\n";
+
+        if (kill(-svc->pgid, SIGTERM) < 0 &&
+            errno != ESRCH)
+            return "ERR signal failed\n";
+
+        svc->pending = action;
+        svc->stop_deadline = now.tv_sec + 5;
+        svc->stopped = 1;
+
+    } else {
+        svc->stopped = action == SERVICE_STOP;
+        svc->retry_at = 0;
+    }
+
+    if (action == SERVICE_START || action == SERVICE_RESTART)
+        svc->enabled = 1;
+
+    svc->failures = 0;
+
+    return "OK accepted\n";
+}
+
+static void service_control_tick(struct managed_service *svc)
+{
+    if (svc->pid == 0 && !service_group_alive(svc)) {
+        svc->pgid = 0;
+
+        if (svc->pending != SERVICE_NONE) {
+            svc->stopped = svc->pending == SERVICE_STOP;
+            svc->pending = SERVICE_NONE;
+            svc->retry_at = 0;
+        }
+
+        return;
+    }
+
+    if (svc->pending == SERVICE_NONE)
+        return;
+
+    struct timespec now;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
+        now.tv_sec >= svc->stop_deadline &&
+        svc->pgid > 1) {
+
+        if (kill(-svc->pgid, SIGKILL) < 0 &&
+            errno != ESRCH)
+            perror("init: service SIGKILL");
+
+        svc->stop_deadline = now.tv_sec + 5;
+    }
+}
+
+static void poll_service_control(
+    struct managed_service *services, int running)
+{
+    if (service_fd < 0)
+        return;
+
+    int fd = accept4(service_fd, NULL, NULL,
+                     SOCK_CLOEXEC | SOCK_NONBLOCK);
+
+    if (fd < 0) {
+        if (errno != EAGAIN && errno != EINTR)
+            perror("init: service control accept");
+        return;
+    }
+
+    struct selyra_service_request req;
+
+    int parsed = selyra_service_receive(fd, &req);
+    const char *reply = "ERR invalid request\n";
+
+    if (parsed == -2)
+        reply = "ERR denied\n";
+
+    else if (parsed == 0) {
+        if (!running)
+            reply = "ERR shutdown in progress\n";
+        else {
+            size_t i = req.target == SERVICE_LOGD ? 0 : 1;
+            if (req.action == SERVICE_ENABLE ||
+                req.action == SERVICE_DISABLE)
+                reply = update_boot_policy(req.target, req.action);
+            else
+                reply = request_service(&services[i], req.action);
+        }
+    }
+
+    (void)send(fd, reply, strlen(reply),
+               MSG_NOSIGNAL | MSG_DONTWAIT);
+
+    close(fd);
 }
 
 static void shutdown_signal_groups(
@@ -530,6 +808,9 @@ static void publish_service_states(
 
         if (!svc->enabled)
             state = "disabled";
+        else if (svc->pending != SERVICE_NONE)
+            state = svc->pending == SERVICE_RESTART ?
+                "restarting" : "stopping";
         else if (svc->pid > 0)
             state = "launched";
         else if (svc->stopped)
@@ -588,6 +869,13 @@ static void manage_services(
             .launch = launch_isolated_statusd,
             .enabled = config->statusd_enabled,
             .restart_limit = config->statusd_restart_limit
+        },
+        {
+            .name = "configd",
+            .start_label = "configd",
+            .launch = launch_configd,
+            .enabled = 1,
+            .restart_limit = 3
         }
     };
 
@@ -621,6 +909,8 @@ static void manage_services(
     else
         puts("init: statusd disabled by config");
 
+    start_service(&services[2]);
+
     publish_service_states(services, count);
     puts("init: service manager ready");
 
@@ -648,7 +938,12 @@ static void manage_services(
         for (size_t i = 0; i < count; ++i) {
             struct managed_service *svc = &services[i];
 
+            if (selyra_shutdown_restart_allowed(&shutdown))
+                service_control_tick(svc);
+
             if (selyra_shutdown_restart_allowed(&shutdown) &&
+                svc->pending == SERVICE_NONE &&
+                !service_group_alive(svc) &&
                 svc->enabled &&
                 !svc->stopped &&
                 svc->pid == 0 &&
@@ -681,6 +976,9 @@ static void manage_services(
                 puts("init: duplicate power request ignored");
             }
         }
+
+        poll_service_control(services,
+            selyra_shutdown_restart_allowed(&shutdown));
 
         if (shutdown.phase == SELYRA_SHUTDOWN_GRACEFUL) {
             if (shutdown_groups_stopped(services, count)) {
@@ -759,10 +1057,19 @@ int main(void)
         prepare_logd_directory() == 0 &&
         prepare_state_directory() == 0 &&
         prepare_power_directory() == 0 &&
+        prepare_config_directory(CONFIGD_RUNTIME) == 0 &&
+        prepare_config_directory(CONFIGD_DATA) == 0 &&
         (power_fd = selyra_power_socket_open(
             "/run/selyra-power/control.sock")) >= 0) {
 
         puts("init: power control socket ready");
+
+        service_fd = open_service_socket();
+
+        if (service_fd < 0)
+            perror("init: service control unavailable");
+        else
+            puts("init: service control socket ready");
 
         struct mo_service_config config;
 
@@ -770,6 +1077,8 @@ int main(void)
                 "/etc/selyra/services.conf",
                 &config) == 0) {
             puts("init: service configuration loaded");
+            load_boot_policy(&config);
+            apply_boot_configuration();
             manage_services(&config, power_fd);
         } else {
             fputs("init: invalid service configuration\n",
